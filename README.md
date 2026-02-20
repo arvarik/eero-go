@@ -1,6 +1,6 @@
 # eero-go
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/arvind/eero-go.svg)](https://pkg.go.dev/github.com/arvind/eero-go)
+[![Go Reference](https://pkg.go.dev/badge/github.com/arvarik/eero-go.svg)](https://pkg.go.dev/github.com/arvarik/eero-go)
 
 `eero-go` is an unofficial, highly robust Go client library for interacting with the Eero Mesh Router API. 
 
@@ -62,7 +62,7 @@ Authentication with Eero relies on a persistent session cookie (`s=user_token`).
 You need Go `1.21` or higher installed.
 
 ```bash
-go get github.com/arvind/eero-go
+go get github.com/arvarik/eero-go
 ```
 
 ## Quick Start
@@ -78,7 +78,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/arvind/eero-go/eero"
+	"github.com/arvarik/eero-go/eero"
 )
 
 func main() {

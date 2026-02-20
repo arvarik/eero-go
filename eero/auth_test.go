@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arvind/eero-go/eero"
+	"github.com/arvarik/eero-go/eero"
 )
 
 func TestAuthService_Login(t *testing.T) {
