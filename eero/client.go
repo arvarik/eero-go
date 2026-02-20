@@ -10,6 +10,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const (
@@ -24,9 +25,9 @@ const (
 // cookie jar for automatic session management), the base URL, and references
 // to each service.
 type Client struct {
-	// HTTPClient is the underlying HTTP client. It is initialized with a
-	// cookie jar so that session cookies (Cookie: s=<user_token>) are
-	// stored and replayed automatically.
+	// HTTPClient handles requests and secure cookie jar persistence.
+	// The session cookie state is managed internally by the jar, making
+	// it safe for concurrent use across Goroutines.
 	HTTPClient *http.Client
 
 	// BaseURL is the root URL for all API requests.
@@ -34,9 +35,6 @@ type Client struct {
 
 	// UserAgent is the User-Agent header sent with every request.
 	UserAgent string
-
-	// userToken is stored after login so it can be set as a cookie.
-	userToken string
 
 	// Services — each service hangs off the client.
 	Auth    *AuthService
@@ -47,15 +45,46 @@ type Client struct {
 }
 
 // NewClient creates a new eero API client with sensible defaults.
-// The returned client uses a cookie jar for transparent session management.
+// The returned client uses a cookie jar for transparent session management
+// and is secured against resource leaks and open-redirect cookie theft.
 func NewClient() (*Client, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, fmt.Errorf("eero: creating cookie jar: %w", err)
 	}
 
+	// Define a resilient custom transport instead of relying on DefaultTransport.
+	// This prevents unbounded idle connection exhaustion or hanging handshakes.
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	httpClient := &http.Client{
+		Transport: transport,
+		Jar:       jar,
+		Timeout:   30 * time.Second, // Fallback timeout for the entire HTTP exchange
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// SECURITY: Prevent Open-Redirect Session Hijacking.
+			// If the API attempts to redirect us to a different domain, abort immediately.
+			// This ensures the cookie jar never leaks the eero session key.
+			if len(via) > 0 && req.URL.Host != via[0].URL.Host {
+				return fmt.Errorf("security policy: blocked cross-domain redirect to %s", req.URL.Host)
+			}
+			if len(via) >= 10 {
+				return fmt.Errorf("stopped after 10 redirects")
+			}
+			return nil
+		},
+	}
+
 	c := &Client{
-		HTTPClient: &http.Client{Jar: jar},
+		HTTPClient: httpClient,
 		BaseURL:    DefaultBaseURL,
 		UserAgent:  DefaultUserAgent,
 	}
@@ -71,17 +100,18 @@ func NewClient() (*Client, error) {
 
 // SetSessionCookie programmatically sets the eero session cookie on the
 // client's cookie jar. This is useful when restoring a previously obtained
-// user_token without going through the full login flow.
+// user_token without going through the full login flow. The underlying
+// cookiejar executes safely across concurrent Goroutines.
 func (c *Client) SetSessionCookie(userToken string) error {
-	c.userToken = userToken
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return fmt.Errorf("eero: parsing base URL: %w", err)
 	}
 	c.HTTPClient.Jar.SetCookies(u, []*http.Cookie{
 		{
-			Name:  "s",
-			Value: userToken,
+			Name:   "s",
+			Value:  userToken,
+			Secure: true, // Enforce transit over HTTPS
 		},
 	})
 	return nil
@@ -140,7 +170,11 @@ func (c *Client) do(req *http.Request, v any) error {
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	// SECURITY: Limit payloads to 5MB to prevent memory exhaustion / DoS attacks.
+	const maxBodyBytes = 5 * 1024 * 1024
+	bodyReader := io.LimitReader(resp.Body, maxBodyBytes)
+
+	bodyBytes, err := io.ReadAll(bodyReader)
 	if err != nil {
 		return fmt.Errorf("eero: reading response body: %w", err)
 	}
@@ -184,7 +218,11 @@ func (c *Client) doRaw(req *http.Request, v any) error {
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	// SECURITY: Limit payloads to 5MB to prevent memory exhaustion / DoS attacks.
+	const maxBodyBytes = 5 * 1024 * 1024
+	bodyReader := io.LimitReader(resp.Body, maxBodyBytes)
+
+	bodyBytes, err := io.ReadAll(bodyReader)
 	if err != nil {
 		return fmt.Errorf("eero: reading response body: %w", err)
 	}
