@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arvind/eero-go/eero"
+	"github.com/arvarik/eero-go/eero"
 )
 
 // setupMockServer spins up a local httptest.Server with a custom handler.

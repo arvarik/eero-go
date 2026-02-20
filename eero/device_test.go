@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arvind/eero-go/eero"
+	"github.com/arvarik/eero-go/eero"
 )
 
 func TestDeviceService_List(t *testing.T) {

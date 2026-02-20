@@ -19,7 +19,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/arvind/eero-go/eero"
+	"github.com/arvarik/eero-go/eero"
 )
 
 // sessionFile is the local path where the session token is cached.
