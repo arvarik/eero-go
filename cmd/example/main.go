@@ -17,7 +17,6 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
-	"time"
 
 	"github.com/arvarik/eero-go/eero"
 )
@@ -31,9 +30,10 @@ type sessionData struct {
 }
 
 func main() {
-	// Enforce a hard deadline on the entire program execution.
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+	// Use a background context for the program execution.
+	// We avoid a short global timeout here because interactive login
+	// (waiting for user input and 2FA code) often takes longer than 15 seconds.
+	ctx := context.Background()
 
 	if err := run(ctx); err != nil {
 		log.Fatal(err)

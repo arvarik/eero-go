@@ -16,26 +16,49 @@ type NetworkService struct {
 // NetworkDetails represents the full details of an eero network, including
 // its name, operational status, and last measured speed.
 type NetworkDetails struct {
-	URL              string       `json:"url"`
-	Name             string       `json:"name"`
-	Status           string       `json:"status"`
-	Timezone         string       `json:"timezone"`
-	Speed            NetworkSpeed `json:"speed"`
-	GuestNetworkName string       `json:"guest_network_name"`
-	GuestNetEnabled  bool         `json:"guest_network_enabled"`
-	SquadID          string       `json:"squad_id"`
-	UpnpEnabled      bool         `json:"upnp"`
-	BandSteering     bool         `json:"band_steering"`
-	ThreadEnabled    bool         `json:"thread"`
-	IPv6Enabled      bool         `json:"ipv6"`
-	Eeros            []EeroNode   `json:"eeros"`
-	Health           Health       `json:"health"`
+	URL           string          `json:"url"`
+	Name          string          `json:"name"`
+	Status        string          `json:"status"`
+	Timezone      NetworkTimezone `json:"timezone"`
+	Speed         NetworkSpeed    `json:"speed"`
+	GuestNetwork  GuestNetwork    `json:"guest_network"`
+	SquadID       string          `json:"squad_id"`
+	UpnpEnabled   bool            `json:"upnp"`
+	BandSteering  bool            `json:"band_steering"`
+	ThreadEnabled bool            `json:"thread"`
+	IPv6          NetworkIPv6     `json:"ipv6"`
+	Eeros         NetworkEeros    `json:"eeros"`
+	Health        Health          `json:"health"`
 }
 
 // NetworkSpeed holds the most recent speed test results for the network.
 type NetworkSpeed struct {
 	Down SpeedMeasurement `json:"down"`
 	Up   SpeedMeasurement `json:"up"`
+}
+
+// NetworkTimezone holds the timezone data for the network.
+type NetworkTimezone struct {
+	Value string `json:"value"`
+}
+
+// GuestNetwork holds the guest network settings.
+type GuestNetwork struct {
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+}
+
+// NetworkIPv6 holds the IPv6 configuration details for the network.
+type NetworkIPv6 struct {
+	NameServers struct {
+		Mode string `json:"mode"`
+	} `json:"name_servers"`
+}
+
+// NetworkEeros holds the eeros count and the list of eero nodes.
+type NetworkEeros struct {
+	Count int        `json:"count"`
+	Data  []EeroNode `json:"data"`
 }
 
 // SpeedMeasurement is a single directional speed measurement.
@@ -69,7 +92,7 @@ type EeroNode struct {
 	Firmware     string  `json:"os_version"`
 	UpdatedAt    string  `json:"updated_at"`
 	ConnectionTo *string `json:"connection_to"`
-	MeshQuality  *string `json:"mesh_quality_bars"`
+	MeshQuality  *int    `json:"mesh_quality_bars"`
 }
 
 // --- Methods ---

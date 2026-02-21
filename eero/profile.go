@@ -47,11 +47,11 @@ type pauseRequest struct {
 
 // --- Methods ---
 
-// ListProfiles returns all profiles on the specified network.
+// List returns all profiles on the specified network.
 //
 // The networkURL parameter should be the exact relative URL from the account
 // response (e.g., "/2.2/networks/12345").
-func (s *ProfileService) ListProfiles(ctx context.Context, networkURL string) ([]Profile, error) {
+func (s *ProfileService) List(ctx context.Context, networkURL string) ([]Profile, error) {
 	req, err := s.client.newRequestFromURL(ctx, http.MethodGet, networkURL+"/profiles", nil)
 	if err != nil {
 		return nil, fmt.Errorf("profile: creating request: %w", err)
@@ -65,19 +65,19 @@ func (s *ProfileService) ListProfiles(ctx context.Context, networkURL string) ([
 	return resp.Data, nil
 }
 
-// PauseProfile pauses internet access for the given profile.
+// Pause pauses internet access for the given profile.
 //
 // The profileURL parameter should be the exact relative URL from the profile
 // response (e.g., "/2.2/networks/12345/profiles/67890").
-func (s *ProfileService) PauseProfile(ctx context.Context, profileURL string) error {
+func (s *ProfileService) Pause(ctx context.Context, profileURL string) error {
 	return s.setPaused(ctx, profileURL, true)
 }
 
-// UnpauseProfile resumes internet access for the given profile.
+// Unpause resumes internet access for the given profile.
 //
 // The profileURL parameter should be the exact relative URL from the profile
 // response (e.g., "/2.2/networks/12345/profiles/67890").
-func (s *ProfileService) UnpauseProfile(ctx context.Context, profileURL string) error {
+func (s *ProfileService) Unpause(ctx context.Context, profileURL string) error {
 	return s.setPaused(ctx, profileURL, false)
 }
 
