@@ -17,7 +17,7 @@ type AccountService struct {
 // list of networks they have access to.
 type Account struct {
 	Name          string          `json:"name"`
-	Phone         string          `json:"phone"`
+	Phone         AccountPhone    `json:"phone"`
 	Email         AccountEmail    `json:"email"`
 	LogID         string          `json:"log_id"`
 	Networks      AccountNetworks `json:"networks"`
@@ -29,6 +29,12 @@ type Account struct {
 
 // AccountEmail holds email-related account fields.
 type AccountEmail struct {
+	Value    string `json:"value"`
+	Verified bool   `json:"verified"`
+}
+
+// AccountPhone holds phone-related account fields.
+type AccountPhone struct {
 	Value    string `json:"value"`
 	Verified bool   `json:"verified"`
 }

@@ -43,14 +43,17 @@ func TestNetworkService_Get(t *testing.T) {
 						"down": {"value": 850.5, "units": "Mbps"},
 						"up": {"value": 940.2, "units": "Mbps"}
 					},
-					"eeros": [
-						{
-							"serial": "111-222",
-							"model": "eero Pro 6",
-							"gateway": true,
-							"ip_address": "192.168.4.1"
-						}
-					],
+					"eeros": {
+						"count": 1,
+						"data": [
+							{
+								"serial": "111-222",
+								"model": "eero Pro 6",
+								"gateway": true,
+								"ip_address": "192.168.4.1"
+							}
+						]
+					},
 					"health": {
 						"internet": {"status": "green"}
 					}
@@ -147,11 +150,11 @@ func TestNetworkService_Get(t *testing.T) {
 				if netDetails.Speed.Down.Units != tc.expectDownUnits {
 					t.Errorf("Down units = %v, want %v", netDetails.Speed.Down.Units, tc.expectDownUnits)
 				}
-				if len(netDetails.Eeros) != tc.expectEeroCount {
-					t.Fatalf("Eero count = %v, want %v", len(netDetails.Eeros), tc.expectEeroCount)
+				if len(netDetails.Eeros.Data) != tc.expectEeroCount {
+					t.Fatalf("Eero count = %v, want %v", len(netDetails.Eeros.Data), tc.expectEeroCount)
 				}
-				if netDetails.Eeros[0].Serial != tc.expectEeroSerial {
-					t.Errorf("Eero serial = %v, want %v", netDetails.Eeros[0].Serial, tc.expectEeroSerial)
+				if netDetails.Eeros.Data[0].Serial != tc.expectEeroSerial {
+					t.Errorf("Eero serial = %v, want %v", netDetails.Eeros.Data[0].Serial, tc.expectEeroSerial)
 				}
 			}
 		})

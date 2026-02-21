@@ -92,6 +92,20 @@ Eero's API enforces strict rate limits on authentication requests. By caching th
 
 To reset your session, simply delete the `.eero_session.json` file.
 
+### Step 4: Using cURL with the Cached Session
+Once you have the `.eero_session.json` file, you can easily use the extracted `user_token` to make direct API calls from your command line using `curl`:
+
+```bash
+# Extract the token and save it to a variable (requires jq)
+TOKEN=$(jq -r '.user_token' .eero_session.json)
+
+# Fetch your account details
+curl -s -H "Cookie: s=$TOKEN" "https://api-user.e2ro.com/2.2/account" | jq
+
+# Fetch all connected devices (replace 12345 with your network ID)
+curl -s -H "Cookie: s=$TOKEN" "https://api-user.e2ro.com/2.2/networks/12345/devices" | jq
+```
+
 ## Example API Calls
 
 The library provides individual services attached to the core `Client`. Below are comprehensive examples of what you can extract and enact using each service.

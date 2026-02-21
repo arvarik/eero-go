@@ -18,28 +18,38 @@ type DeviceService struct {
 // Optional fields that the API may omit for offline devices use pointer types
 // so that missing JSON keys decode to nil rather than zero values.
 type Device struct {
-	URL            string     `json:"url"`
-	MAC            string     `json:"mac"`
-	Nickname       *string    `json:"nickname"`
-	Hostname       *string    `json:"hostname"`
-	DisplayName    *string    `json:"display_name"`
-	IP             *string    `json:"ip"`
-	ConnectionType *string    `json:"connection_type"`
-	Connected      bool       `json:"connected"`
-	Wireless       bool       `json:"wireless"`
-	DeviceType     string     `json:"device_type"`
-	Manufacturer   *string    `json:"manufacturer"`
-	Source         *string    `json:"source"`
-	LastActive     time.Time  `json:"last_active"`
-	Profile        *DeviceRef `json:"profile"`
-	Usage          *Usage     `json:"usage"`
-	Band           *string    `json:"frequency_band"`
+	URL            string        `json:"url"`
+	MAC            string        `json:"mac"`
+	Nickname       *string       `json:"nickname"`
+	Hostname       *string       `json:"hostname"`
+	DisplayName    *string       `json:"display_name"`
+	IP             *string       `json:"ip"`
+	ConnectionType *string       `json:"connection_type"`
+	Connected      bool          `json:"connected"`
+	Wireless       bool          `json:"wireless"`
+	DeviceType     string        `json:"device_type"`
+	Manufacturer   *string       `json:"manufacturer"`
+	Source         *DeviceSource `json:"source"`
+	LastActive     time.Time     `json:"last_active"`
+	Profile        *DeviceRef    `json:"profile"`
+	Usage          *Usage        `json:"usage"`
+	Band           *string       `json:"frequency_band"`
 }
 
 // DeviceRef is a lightweight reference to a profile from within a device.
 type DeviceRef struct {
 	URL  string `json:"url"`
 	Name string `json:"name"`
+}
+
+// DeviceSource holds information about what eero node this device is connected to.
+type DeviceSource struct {
+	Location     string `json:"location"`
+	IsGateway    bool   `json:"is_gateway"`
+	Model        string `json:"model"`
+	DisplayName  string `json:"display_name"`
+	SerialNumber string `json:"serial_number"`
+	URL          string `json:"url"`
 }
 
 // Usage holds bandwidth usage statistics for a device.
