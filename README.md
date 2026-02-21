@@ -93,17 +93,25 @@ Eero's API enforces strict rate limits on authentication requests. By caching th
 To reset your session, simply delete the `.eero_session.json` file.
 
 ### Step 4: Using cURL with the Cached Session
-Once you have the `.eero_session.json` file, you can easily use the extracted `user_token` to make direct API calls from your command line using `curl`:
+Once you have the `.eero_session.json` file, you can easily use the extracted `user_token` to make direct API calls from your command line using `curl`. 
+
+Here are examples for all the available read-only (`GET`) endpoints:
 
 ```bash
 # Extract the token and save it to a variable (requires jq)
 TOKEN=$(jq -r '.user_token' .eero_session.json)
 
-# Fetch your account details
+# 1. Fetch your account details and networks
 curl -s -H "Cookie: s=$TOKEN" "https://api-user.e2ro.com/2.2/account" | jq
 
-# Fetch all connected devices (replace 12345 with your network ID)
-curl -s -H "Cookie: s=$TOKEN" "https://api-user.e2ro.com/2.2/networks/12345/devices" | jq
+# 2. Fetch specific network details (replace {network_id} with your network's ID from Step 1)
+curl -s -H "Cookie: s=$TOKEN" "https://api-user.e2ro.com/2.2/networks/{network_id}" | jq
+
+# 3. Fetch all connected and offline devices for a network
+curl -s -H "Cookie: s=$TOKEN" "https://api-user.e2ro.com/2.2/networks/{network_id}/devices" | jq
+
+# 4. Fetch all device profiles (e.g., family member groupings) for a network
+curl -s -H "Cookie: s=$TOKEN" "https://api-user.e2ro.com/2.2/networks/{network_id}/profiles" | jq
 ```
 
 ## Example API Calls
