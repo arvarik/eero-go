@@ -39,6 +39,12 @@ func TestDeviceService_List(t *testing.T) {
 						"mac": "AA:BB:CC:DD:EE:11",
 						"nickname": "Arvind's iPhone",
 						"ip": "192.168.4.50",
+						"vlan_id": 4,
+						"connectivity": {
+							"score_bars": 5,
+							"rx_bitrate": "15.0 MBit/s"
+						},
+						"ips": ["192.168.4.50", "fe80::1"],
 						"connected": true,
 						"device_type": "phone",
 						"last_active": "2023-10-01T11:59:00Z"
@@ -51,11 +57,18 @@ func TestDeviceService_List(t *testing.T) {
 						"connected": false,
 						"device_type": "laptop",
 						"last_active": "2023-09-30T10:00:00Z"
+					},
+					{
+						"url": "/2.2/networks/55555/devices/3",
+						"mac": "AA:BB:CC:DD:EE:33",
+						"nickname": "Test Switch",
+						"connected": true,
+						"manufacturer": "Nintendo"
 					}
 				]
 			}`,
 			wantErr:                false,
-			expectCount:            2,
+			expectCount:            3,
 			expectFirstDeviceName:  ptr("Arvind's iPhone"),
 			expectSecondDeviceName: nil, // Decoded pointer should be nil, not panicked
 			expectSecondDeviceIP:   nil, // Eero omits IP for offline devices
@@ -119,8 +132,17 @@ func TestDeviceService_List(t *testing.T) {
 			if !d1.Connected {
 				t.Errorf("Device 1 should be connected")
 			}
-			if d1.LastActive.IsZero() {
-				t.Errorf("Device 1 failed to parse last_active time.Time")
+			if d1.LastActive.Time.IsZero() {
+				t.Errorf("Device 1 failed to parse last_active custom EeroTime format")
+			}
+			if d1.VlanID == nil || *d1.VlanID != 4 {
+				t.Errorf("Device 1 failed to unmarshal nested pointer primitive arrays")
+			}
+			if d1.Connectivity.ScoreBars != 5 || d1.Connectivity.RxBitrate == "" {
+				t.Errorf("Device 1 failed to parse nested connectivity objects properties")
+			}
+			if len(d1.IPs) < 1 {
+				t.Errorf("Device IPs mapping missing arrays data")
 			}
 
 			// Verify the second "offline" device gracefully handles nil pointers
