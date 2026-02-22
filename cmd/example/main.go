@@ -206,8 +206,8 @@ func interactiveLogin(ctx context.Context, client *eero.Client) error {
 // with a fallback of "N/A".
 func printDeviceTable(devices []eero.Device) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 3, ' ', 0)
-	fmt.Fprintln(w, "NICKNAME\tMAC ADDRESS\tIP ADDRESS\tSTATUS")
-	fmt.Fprintln(w, "--------\t-----------\t----------\t------")
+	_, _ = fmt.Fprintln(w, "NICKNAME\tMAC ADDRESS\tIP ADDRESS\tSTATUS")
+	_, _ = fmt.Fprintln(w, "--------\t-----------\t----------\t------")
 
 	for _, d := range devices {
 		nickname := deref(d.Nickname, "N/A")
@@ -216,10 +216,10 @@ func printDeviceTable(devices []eero.Device) {
 		if d.Connected {
 			status = "online"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", nickname, d.MAC, ip, status)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", nickname, d.MAC, ip, status)
 	}
 
-	w.Flush()
+	_ = w.Flush()
 }
 
 // deref safely dereferences a *string, returning fallback if the pointer is nil.
