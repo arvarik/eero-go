@@ -168,7 +168,7 @@ func (c *Client) do(req *http.Request, v any) error {
 	if err != nil {
 		return fmt.Errorf("eero: executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// SECURITY: Limit payloads to 5MB to prevent memory exhaustion / DoS attacks.
 	const maxBodyBytes = 5 * 1024 * 1024
@@ -216,7 +216,7 @@ func (c *Client) doRaw(req *http.Request, v any) error {
 	if err != nil {
 		return fmt.Errorf("eero: executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// SECURITY: Limit payloads to 5MB to prevent memory exhaustion / DoS attacks.
 	const maxBodyBytes = 5 * 1024 * 1024

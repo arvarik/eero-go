@@ -192,6 +192,15 @@ The test suite validates memory safety limits and concurrency using standard lib
 make test
 ```
 
+## Local Development / First Time Setup
+
+If you are contributing to this library, you should run the `setup` command immediately after cloning. This automatically configures standard Git hooks to invoke the Go linter before allowing commits:
+
+```bash
+# Sets `core.hooksPath` to `.githooks` enabling the pre-commit action automatically
+make setup
+```
+
 ## Building for Home Labs
 
 The included `Makefile` handles cross-compilation for headless servers and minimal Linux environments (like Proxmox or TrueNAS).

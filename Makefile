@@ -1,4 +1,4 @@
-.PHONY: tidy test build-local build-linux-amd64 build-linux-arm64 clean
+.PHONY: tidy test lint build-local build-linux-amd64 build-linux-arm64 clean setup
 
 tidy:
 	go mod tidy
@@ -6,6 +6,11 @@ tidy:
 
 test:
 	go test -v -race ./...
+
+lint:
+	@echo "=> Running golangci-lint..."
+	# Assuming golangci-lint is installed locally or in PATH
+	golangci-lint run ./...
 
 build-local:
 	mkdir -p bin
@@ -22,3 +27,9 @@ build-linux-arm64:
 clean:
 	rm -rf bin/
 	rm -f .eero_session.json
+
+setup:
+	@echo "=> Configuring local git hooks..."
+	git config core.hooksPath .githooks
+	chmod +x .githooks/*
+	@echo "✅ Pre-commit hooks installed."
