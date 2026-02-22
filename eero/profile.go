@@ -16,23 +16,18 @@ type ProfileService struct {
 
 // Profile represents a user profile on the eero network.
 type Profile struct {
-	URL              string          `json:"url"`
-	Name             string          `json:"name"`
-	Paused           bool            `json:"paused"`
-	DeviceCount      int             `json:"device_count"`
-	Devices          []ProfileDevice `json:"devices"`
-	BlockApps        bool            `json:"block_apps"`
-	SafeSearchActive bool            `json:"safe_search_enabled"`
-	Bedtime          *Schedule       `json:"bedtime"`
+	URL              string    `json:"url"`
+	Name             string    `json:"name"`
+	Paused           bool      `json:"paused"`
+	DeviceCount      int       `json:"device_count"`
+	Devices          []Device  `json:"devices"`
+	BlockApps        bool      `json:"block_apps"`
+	SafeSearchActive bool      `json:"safe_search_enabled"`
+	Bedtime          *Schedule `json:"bedtime"`
 }
 
 // ProfileDevice is a lightweight device reference within a profile.
-type ProfileDevice struct {
-	URL         string `json:"url"`
-	DisplayName string `json:"display_name"`
-	MACAddress  string `json:"mac"`
-	Connected   bool   `json:"connected"`
-}
+// Unused directly; now mapped using the detailed complete Device models.
 
 // Schedule represents a scheduled action (e.g., bedtime) on a profile.
 type Schedule struct {
