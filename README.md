@@ -3,6 +3,9 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/arvarik/eero-go.svg)](https://pkg.go.dev/github.com/arvarik/eero-go)
 [![CI](https://github.com/arvarik/eero-go/actions/workflows/ci.yml/badge.svg)](https://github.com/arvarik/eero-go/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Report Card](https://goreportcard.com/badge/github.com/arvarik/eero-go)](https://goreportcard.com/report/github.com/arvarik/eero-go)
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/arvarik/eero-go?sort=semver)](https://github.com/arvarik/eero-go/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/arvarik/eero-go)](https://go.dev/doc/install)
 
 `eero-go` is an unofficial, highly robust Go client library for interacting with the Eero Mesh Router API. 
 
