@@ -23,9 +23,9 @@ The library is modularized by functional domains to provide strict operational b
 - `client.go`: Centralizes the HTTP `Client`, enforces security boundaries, limits payload sizes, and manages the thread-safe `net/http/cookiejar`.
 - `auth.go`: Manages the undocumented 2-step verification challenge (Email/Phone -> OTP).
 - `account.go`: Retrieves top-level user account details and base networking routing URLs.
-- `network.go`: Safely parses Eero's `{"meta": {}, "data": {}}` JSON payloads to expose network operational status, exact port speeds, and health metrics.
-- `device.go`: Lists all connected and recently offline devices, safely mapping absent optional fields (like IPs for offline devices) to `nil` using `*string` pointers.
-- `profile.go`: Manages groupings of devices and offers the ability to pause/unpause internet blocks.
+- `network.go`: Safely parses Eero's deeply nested JSON payloads to expose granular telemetry (`IPv6Leases`, `DHCP` allocations, `PremiumDNS` adblocking features, etc) alongside network speeds and health metrics.
+- `device.go`: Exhaustively lists all connected and offline devices with detailed connectivity reporting (signal noise ratios, `vlan_id` tags, bandwidth `Bps` throughputs) mapping absent optional fields (like IPs for offline devices) to `nil` using `*string` pointers.
+- `profile.go`: Manages groupings of fully mapped `Device` topologies and offers the ability to pause/unpause internet blocks globally across a user.
 
 ## System Workflow Diagram
 
@@ -137,9 +137,9 @@ fmt.Println("Status:", net.Status)                                      // "onli
 fmt.Printf("Speed: %.1f %s Down\n", net.Speed.Down.Value, net.Speed.Down.Units) // 850.5 Mbps
 
 // Iterate over the physical Eero router boxes
-for _, eeroNode := range net.Eeros {
+for _, eeroNode := range net.Eeros.Data {
 	fmt.Printf("Model: %s, Firmware: %s, Gateway: %t\n", 
-		eeroNode.Model, eeroNode.Firmware, eeroNode.Gateway)
+		eeroNode.Model, eeroNode.OSVersion, eeroNode.Gateway)
 }
 
 // Reboot the entire network
@@ -161,6 +161,9 @@ for _, d := range devices {
 	fmt.Printf("Device: %s\n", name)
 	fmt.Printf("Connected: %t (Type: %s)\n", d.Connected, d.DeviceType)
 	fmt.Printf("Last Active: %s\n", d.LastActive.Format(time.RFC3339))
+    if d.Connectivity.ScoreBars > 0 {
+        fmt.Printf("Wireless Signal Strength: %d/5 (%s)\n", d.Connectivity.ScoreBars, d.Connectivity.Signal)
+    }
 }
 ```
 

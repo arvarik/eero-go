@@ -27,6 +27,9 @@ func TestNetworkService_Get(t *testing.T) {
 		expectDownUnits  string
 		expectEeroCount  int
 		expectEeroSerial string
+		expectDHCPMode   string
+		expectDNSCaching bool
+		expectGeoCountry string
 	}{
 		{
 			name:       "Success_FullNetworkPayload",
@@ -39,6 +42,17 @@ func TestNetworkService_Get(t *testing.T) {
 					"name": "Home Mesh",
 					"url": "/2.2/networks/44444",
 					"status": "online",
+					"dhcp": {
+						"mode": "automatic"
+					},
+					"dns": {
+						"mode": "custom",
+						"caching": true,
+						"parent": {"ips": ["8.8.8.8", "1.1.1.1"]}
+					},
+					"geo_ip": {
+						"countryCode": "US"
+					},
 					"speed": {
 						"down": {"value": 850.5, "units": "Mbps"},
 						"up": {"value": 940.2, "units": "Mbps"}
@@ -50,6 +64,10 @@ func TestNetworkService_Get(t *testing.T) {
 								"serial": "111-222",
 								"model": "eero Pro 6",
 								"gateway": true,
+								"joined": "2026-02-21T22:14:52+0000",
+								"ipv6_addresses": [
+									{"address": "fd52:xxxx:xxxx:1:0:0:0:1/64", "scope": "ula", "interface": "br_lan"}
+								],
 								"ip_address": "192.168.4.1"
 							}
 						]
@@ -66,6 +84,9 @@ func TestNetworkService_Get(t *testing.T) {
 			expectDownUnits:  "Mbps",
 			expectEeroCount:  1,
 			expectEeroSerial: "111-222",
+			expectDHCPMode:   "automatic",
+			expectDNSCaching: true,
+			expectGeoCountry: "US",
 		},
 		{
 			name:         "Failure_NetworkNotFound",
@@ -150,11 +171,27 @@ func TestNetworkService_Get(t *testing.T) {
 				if netDetails.Speed.Down.Units != tc.expectDownUnits {
 					t.Errorf("Down units = %v, want %v", netDetails.Speed.Down.Units, tc.expectDownUnits)
 				}
+				if netDetails.DHCP.Mode != tc.expectDHCPMode {
+					t.Errorf("DHCP Mode mismatch")
+				}
+				if netDetails.DNS.Caching != tc.expectDNSCaching {
+					t.Errorf("DNS Caching boolean mismatch")
+				}
+				if netDetails.GeoIP.CountryCode != tc.expectGeoCountry {
+					t.Errorf("GeoIP mapping failed")
+				}
 				if len(netDetails.Eeros.Data) != tc.expectEeroCount {
 					t.Fatalf("Eero count = %v, want %v", len(netDetails.Eeros.Data), tc.expectEeroCount)
 				}
 				if netDetails.Eeros.Data[0].Serial != tc.expectEeroSerial {
 					t.Errorf("Eero serial = %v, want %v", netDetails.Eeros.Data[0].Serial, tc.expectEeroSerial)
+				}
+				eeroNode := netDetails.Eeros.Data[0]
+				if eeroNode.Joined.Time.IsZero() {
+					t.Errorf("Failed to parse EeroNode custom timestamp wrapped properties")
+				}
+				if len(eeroNode.IPv6Addresses) == 0 {
+					t.Errorf("Failed to map struct slices of IPV6 interfaces.")
 				}
 			}
 		})
