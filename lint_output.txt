@@ -1,0 +1,12 @@
+eero/auth_test.go:103:12: Error return value of `w.Write` is not checked (errcheck)
+				w.Write([]byte(tc.mockResponse))
+				       ^
+eero/auth_test.go:195:35: Error return value of `(*encoding/json.Decoder).Decode` is not checked (errcheck)
+				json.NewDecoder(r.Body).Decode(&body)
+				                              ^
+eero/auth_test.go:201:12: Error return value of `w.Write` is not checked (errcheck)
+				w.Write([]byte(tc.mockResponse))
+				       ^
+eero/client_test.go:36:10: Error return value of `w.Write` is not checked (errcheck)
+		w.Write([]byte(`{
+		       ^

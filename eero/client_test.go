@@ -33,7 +33,7 @@ func TestLogin(t *testing.T) {
 
 		w.WriteHeader(http.StatusOK)
 		// Mock the exact Eero JSON wrapper containing the user_token in 'data'
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"meta": {"code": 200, "server_time": "2023-10-01T12:00:00Z"},
 			"data": {"user_token": "mock_token_abc123"}
 		}`))
@@ -78,7 +78,7 @@ func TestGetNetwork(t *testing.T) {
 
 		w.WriteHeader(http.StatusOK)
 		// Mock the exact Eero JSON wrapper with network status and nested speeds
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"meta": {"code": 200},
 			"data": {
 				"name": "Home Mesh",
@@ -129,7 +129,7 @@ func TestErrorHandling(t *testing.T) {
 	mockServer := setupMockServer(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		// Eero's meta wrapper mapping a 500 crash
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"meta": {"code": 500, "error": "Internal Server Error"},
 			"data": {}
 		}`))

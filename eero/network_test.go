@@ -99,7 +99,7 @@ func TestNetworkService_Get(t *testing.T) {
 				}
 
 				w.WriteHeader(tc.mockStatus)
-				w.Write([]byte(tc.mockResponse))
+				_, _ = w.Write([]byte(tc.mockResponse))
 			})
 
 			server := httptest.NewServer(mux)

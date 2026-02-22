@@ -83,7 +83,7 @@ func TestDeviceService_List(t *testing.T) {
 					t.Errorf("Expected GET, got %s", r.Method)
 				}
 				w.WriteHeader(tc.mockStatus)
-				w.Write([]byte(tc.mockResponse))
+				_, _ = w.Write([]byte(tc.mockResponse))
 			})
 
 			server := httptest.NewServer(mux)
