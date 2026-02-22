@@ -100,7 +100,7 @@ func TestAuthService_Login(t *testing.T) {
 
 				// Return the mocked response for this test case
 				w.WriteHeader(tc.mockStatus)
-				w.Write([]byte(tc.mockResponse))
+				_, _ = w.Write([]byte(tc.mockResponse))
 			})
 
 			server := httptest.NewServer(mux)
@@ -192,13 +192,13 @@ func TestAuthService_Verify(t *testing.T) {
 				}
 
 				var body eero.VerifyRequest
-				json.NewDecoder(r.Body).Decode(&body)
+				_ = json.NewDecoder(r.Body).Decode(&body)
 				if body.Code != tc.code {
 					t.Errorf("Expected code %q, got %q", tc.code, body.Code)
 				}
 
 				w.WriteHeader(tc.mockStatus)
-				w.Write([]byte(tc.mockResponse))
+				_, _ = w.Write([]byte(tc.mockResponse))
 			})
 
 			server := httptest.NewServer(mux)
