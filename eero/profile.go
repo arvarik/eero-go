@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 )
 
 // ProfileService manages user profiles (e.g., family members) on an eero
@@ -48,12 +47,7 @@ type pauseRequest struct {
 // The networkURL parameter should be the exact relative URL from the account
 // response (e.g., "/2.2/networks/12345").
 func (s *ProfileService) List(ctx context.Context, networkURL string) ([]Profile, error) {
-	u, err := url.JoinPath(networkURL, "profiles")
-	if err != nil {
-		return nil, fmt.Errorf("profile: joining url path: %w", err)
-	}
-
-	req, err := s.client.newRequestFromURL(ctx, http.MethodGet, u, nil)
+	req, err := s.client.newRequestFromURL(ctx, http.MethodGet, networkURL+"/profiles", nil)
 	if err != nil {
 		return nil, fmt.Errorf("profile: creating request: %w", err)
 	}

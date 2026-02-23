@@ -119,10 +119,10 @@ func (c *Client) SetSessionCookie(userToken string) error {
 // newRequest creates an *http.Request with the appropriate headers and
 // optional JSON body. The path is appended to the client's BaseURL.
 func (c *Client) newRequest(ctx context.Context, method, path string, body any) (*http.Request, error) {
-	u, err := url.JoinPath(c.BaseURL, path)
-	if err != nil {
-		return nil, fmt.Errorf("eero: joining url path: %w", err)
-	}
+	// We use simple string concatenation here because BaseURL typically contains
+	// a path prefix (e.g. "/2.2") and path typically starts with "/".
+	// using ResolveReference would drop the BaseURL path if the new path starts with "/".
+	u := c.BaseURL + path
 
 	var bodyReader io.Reader
 	if body != nil {
@@ -159,15 +159,6 @@ type response struct {
 type EeroResponse[T any] struct {
 	Meta APIError `json:"meta"`
 	Data T        `json:"data"`
-}
-
-// GetMeta implements the metaProvider interface for EeroResponse.
-func (e *EeroResponse[T]) GetMeta() APIError {
-	return e.Meta
-}
-
-type metaProvider interface {
-	GetMeta() APIError
 }
 
 // do executes the given request and decodes the JSON envelope. If the API
@@ -238,25 +229,7 @@ func (c *Client) doRaw(req *http.Request, v any) error {
 		return fmt.Errorf("eero: reading response body: %w", err)
 	}
 
-	// Optimization: If v implements metaProvider (e.g. EeroResponse[T]),
-	// we can unmarshal once and check the meta from there.
-	if v != nil {
-		if err := json.Unmarshal(bodyBytes, v); err != nil {
-			return fmt.Errorf("eero: decoding response: %w", err)
-		}
-
-		if mp, ok := v.(metaProvider); ok {
-			apiErr := mp.GetMeta()
-			if resp.StatusCode < 200 || resp.StatusCode >= 300 || apiErr.Code >= 400 {
-				outErr := &apiErr
-				outErr.HTTPStatusCode = resp.StatusCode
-				return outErr
-			}
-			return nil
-		}
-	}
-
-	// Fallback: Check for API-level errors by peeking at the meta envelope.
+	// Check for API-level errors by peeking at the meta envelope.
 	var meta struct {
 		Meta APIError `json:"meta"`
 	}
@@ -271,6 +244,13 @@ func (c *Client) doRaw(req *http.Request, v any) error {
 		apiErr := &meta.Meta
 		apiErr.HTTPStatusCode = resp.StatusCode
 		return apiErr
+	}
+
+	// Unmarshal the full response into the caller's target.
+	if v != nil {
+		if err := json.Unmarshal(bodyBytes, v); err != nil {
+			return fmt.Errorf("eero: decoding response: %w", err)
+		}
 	}
 
 	return nil
@@ -293,10 +273,15 @@ func (c *Client) originURL() string {
 // than appending to BaseURL. This avoids duplicate path prefixes when the
 // caller already has a complete API-relative URL.
 func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL string, body any) (*http.Request, error) {
-	u, err := url.JoinPath(c.originURL(), relativeURL)
+	base, err := url.Parse(c.originURL())
 	if err != nil {
-		return nil, fmt.Errorf("eero: joining url path: %w", err)
+		return nil, fmt.Errorf("eero: parsing origin URL: %w", err)
 	}
+	rel, err := url.Parse(relativeURL)
+	if err != nil {
+		return nil, fmt.Errorf("eero: parsing relative URL: %w", err)
+	}
+	u := base.ResolveReference(rel).String()
 
 	var bodyReader io.Reader
 	if body != nil {
