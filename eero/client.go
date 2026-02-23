@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"strings"
 	"time"
 )
 
@@ -120,6 +119,9 @@ func (c *Client) SetSessionCookie(userToken string) error {
 // newRequest creates an *http.Request with the appropriate headers and
 // optional JSON body. The path is appended to the client's BaseURL.
 func (c *Client) newRequest(ctx context.Context, method, path string, body any) (*http.Request, error) {
+	// We use simple string concatenation here because BaseURL typically contains
+	// a path prefix (e.g. "/2.2") and path typically starts with "/".
+	// using ResolveReference would drop the BaseURL path if the new path starts with "/".
 	u := c.BaseURL + path
 
 	var bodyReader io.Reader
@@ -258,13 +260,16 @@ func (c *Client) doRaw(req *http.Request, v any) error {
 // "https://api-user.e2ro.com") so that callers can build URLs from full
 // relative paths like "/2.2/networks/12345" without double-prefixing the
 // version segment.
-func (c *Client) originURL() string {
-	// BaseURL is expected to be like "https://api-user.e2ro.com/2.2".
-	// We strip from the third slash onward.
-	if idx := strings.Index(c.BaseURL[8:], "/"); idx >= 0 {
-		return c.BaseURL[:8+idx]
+func (c *Client) originURL() (*url.URL, error) {
+	u, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return nil, err
 	}
-	return c.BaseURL
+	if u.Scheme == "" || u.Host == "" {
+		return u, nil
+	}
+	// Return a copy with only Scheme and Host set
+	return &url.URL{Scheme: u.Scheme, Host: u.Host}, nil
 }
 
 // newRequestFromURL creates an *http.Request using a full relative path
@@ -272,7 +277,15 @@ func (c *Client) originURL() string {
 // than appending to BaseURL. This avoids duplicate path prefixes when the
 // caller already has a complete API-relative URL.
 func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL string, body any) (*http.Request, error) {
-	u := c.originURL() + relativeURL
+	base, err := c.originURL()
+	if err != nil {
+		return nil, fmt.Errorf("eero: parsing origin URL: %w", err)
+	}
+	rel, err := url.Parse(relativeURL)
+	if err != nil {
+		return nil, fmt.Errorf("eero: parsing relative URL: %w", err)
+	}
+	u := base.ResolveReference(rel).String()
 
 	var bodyReader io.Reader
 	if body != nil {
