@@ -1,6 +1,9 @@
 package eero
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // EeroTime handles eero's custom timestamp formats that do not strictly comply
 // with RFC3339, such as "2006-01-02T15:04:05+0000".
@@ -12,11 +15,23 @@ type EeroTime struct {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (t *EeroTime) UnmarshalJSON(b []byte) error {
-	s := string(b)
-	if s == "null" || s == `""` {
+	// 1. Handle explicit nulls safely
+	if string(b) == "null" {
 		return nil
 	}
-	s = s[1 : len(s)-1] // strip quotes
+
+	// 2. Decode the JSON string value (handling quotes, escapes, etc.)
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+
+	// 3. Handle empty strings
+	if s == "" {
+		return nil
+	}
+
+	// 4. Attempt parsing
 	parsed, err := time.Parse("2006-01-02T15:04:05Z0700", s)
 	if err != nil {
 		// Fallback to strict format

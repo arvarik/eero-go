@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -287,7 +288,12 @@ func (s *NetworkService) Get(ctx context.Context, networkURL string) (*NetworkDe
 // The networkURL parameter should be the exact relative URL from the account
 // response (e.g., "/2.2/networks/12345").
 func (s *NetworkService) Reboot(ctx context.Context, networkURL string) error {
-	req, err := s.client.newRequestFromURL(ctx, http.MethodPost, networkURL+"/reboot", nil)
+	u, err := url.JoinPath(networkURL, "reboot")
+	if err != nil {
+		return fmt.Errorf("network: joining url path: %w", err)
+	}
+
+	req, err := s.client.newRequestFromURL(ctx, http.MethodPost, u, nil)
 	if err != nil {
 		return fmt.Errorf("network: creating reboot request: %w", err)
 	}

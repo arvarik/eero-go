@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // DeviceService provides access to devices connected to an eero network.
@@ -140,7 +141,12 @@ type RingLTE struct {
 // The response is unmarshaled into EeroResponse[[]Device], but only the
 // []Device slice is returned to the caller.
 func (s *DeviceService) List(ctx context.Context, networkURL string) ([]Device, error) {
-	req, err := s.client.newRequestFromURL(ctx, http.MethodGet, networkURL+"/devices", nil)
+	u, err := url.JoinPath(networkURL, "devices")
+	if err != nil {
+		return nil, fmt.Errorf("device: joining url path: %w", err)
+	}
+
+	req, err := s.client.newRequestFromURL(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("device: creating request: %w", err)
 	}
