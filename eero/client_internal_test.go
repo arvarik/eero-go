@@ -18,7 +18,12 @@ func TestClient_originURL_Robustness(t *testing.T) {
 
 	for _, tt := range tests {
 		c := &Client{BaseURL: tt.baseURL}
-		got := c.originURL()
+		u, err := c.originURL()
+		if err != nil {
+			t.Errorf("originURL(%q) error: %v", tt.baseURL, err)
+			continue
+		}
+		got := u.String()
 		if got != tt.expected {
 			t.Errorf("originURL(%q) = %q; want %q", tt.baseURL, got, tt.expected)
 		}

@@ -260,12 +260,16 @@ func (c *Client) doRaw(req *http.Request, v any) error {
 // "https://api-user.e2ro.com") so that callers can build URLs from full
 // relative paths like "/2.2/networks/12345" without double-prefixing the
 // version segment.
-func (c *Client) originURL() string {
+func (c *Client) originURL() (*url.URL, error) {
 	u, err := url.Parse(c.BaseURL)
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return c.BaseURL
+	if err != nil {
+		return nil, err
 	}
-	return u.Scheme + "://" + u.Host
+	if u.Scheme == "" || u.Host == "" {
+		return u, nil
+	}
+	// Return a copy with only Scheme and Host set
+	return &url.URL{Scheme: u.Scheme, Host: u.Host}, nil
 }
 
 // newRequestFromURL creates an *http.Request using a full relative path
@@ -273,7 +277,7 @@ func (c *Client) originURL() string {
 // than appending to BaseURL. This avoids duplicate path prefixes when the
 // caller already has a complete API-relative URL.
 func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL string, body any) (*http.Request, error) {
-	base, err := url.Parse(c.originURL())
+	base, err := c.originURL()
 	if err != nil {
 		return nil, fmt.Errorf("eero: parsing origin URL: %w", err)
 	}
