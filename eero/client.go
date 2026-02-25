@@ -160,14 +160,11 @@ type EeroResponse[T any] struct {
 	Data T        `json:"data"`
 }
 
-// do executes the given request and decodes the JSON envelope. If the API
-// returns a non-2xx status or the meta.code indicates an error, a structured
-// *APIError is returned. If v is non-nil, the "data" portion of the response
-// envelope is decoded into it.
-func (c *Client) do(req *http.Request, v any) error {
+// performRequest executes the HTTP request and reads the response body up to a limit.
+func (c *Client) performRequest(req *http.Request) ([]byte, int, error) {
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("eero: executing request: %w", err)
+		return nil, 0, fmt.Errorf("eero: executing request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -177,24 +174,39 @@ func (c *Client) do(req *http.Request, v any) error {
 
 	bodyBytes, err := io.ReadAll(bodyReader)
 	if err != nil {
-		return fmt.Errorf("eero: reading response body: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("eero: reading response body: %w", err)
 	}
+	return bodyBytes, resp.StatusCode, nil
+}
 
-	var envelope response
-	if err := json.Unmarshal(bodyBytes, &envelope); err != nil {
-		// If we can't parse the envelope at all, wrap the raw status.
+// checkError inspects the response body and status code for API errors.
+func (c *Client) checkError(bodyBytes []byte, statusCode int) error {
+	var meta struct {
+		Meta APIError `json:"meta"`
+	}
+	if err := json.Unmarshal(bodyBytes, &meta); err != nil {
 		return &APIError{
-			HTTPStatusCode: resp.StatusCode,
-			Code:           resp.StatusCode,
+			HTTPStatusCode: statusCode,
+			Code:           statusCode,
 			Message:        fmt.Sprintf("unparseable response body: %s", string(bodyBytes)),
 		}
 	}
-
-	// Check for API-level errors.
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 || envelope.Meta.Code >= 400 {
-		apiErr := &envelope.Meta
-		apiErr.HTTPStatusCode = resp.StatusCode
+	if statusCode < 200 || statusCode >= 300 || meta.Meta.Code >= 400 {
+		apiErr := &meta.Meta
+		apiErr.HTTPStatusCode = statusCode
 		return apiErr
+	}
+	return nil
+}
+
+// do executes the given request and decodes the JSON envelope. If the API
+// returns a non-2xx status or the meta.code indicates an error, a structured
+// *APIError is returned. If v is non-nil, the "data" portion of the response
+// envelope is decoded into it.
+func (c *Client) do(req *http.Request, v any) error {
+	var envelope response
+	if err := c.doRaw(req, &envelope); err != nil {
+		return err
 	}
 
 	// Decode the data payload if a target was provided.
@@ -213,36 +225,13 @@ func (c *Client) do(req *http.Request, v any) error {
 // caller controls the full envelope type. Error checking is performed by
 // inspecting the HTTP status and parsing a meta envelope from the raw bytes.
 func (c *Client) doRaw(req *http.Request, v any) error {
-	resp, err := c.HTTPClient.Do(req)
+	bodyBytes, statusCode, err := c.performRequest(req)
 	if err != nil {
-		return fmt.Errorf("eero: executing request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	// SECURITY: Limit payloads to 5MB to prevent memory exhaustion / DoS attacks.
-	const maxBodyBytes = 5 * 1024 * 1024
-	bodyReader := io.LimitReader(resp.Body, maxBodyBytes)
-
-	bodyBytes, err := io.ReadAll(bodyReader)
-	if err != nil {
-		return fmt.Errorf("eero: reading response body: %w", err)
+		return err
 	}
 
-	// Check for API-level errors by peeking at the meta envelope.
-	var meta struct {
-		Meta APIError `json:"meta"`
-	}
-	if err := json.Unmarshal(bodyBytes, &meta); err != nil {
-		return &APIError{
-			HTTPStatusCode: resp.StatusCode,
-			Code:           resp.StatusCode,
-			Message:        fmt.Sprintf("unparseable response body: %s", string(bodyBytes)),
-		}
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 || meta.Meta.Code >= 400 {
-		apiErr := &meta.Meta
-		apiErr.HTTPStatusCode = resp.StatusCode
-		return apiErr
+	if err := c.checkError(bodyBytes, statusCode); err != nil {
+		return err
 	}
 
 	// Unmarshal the full response into the caller's target.
