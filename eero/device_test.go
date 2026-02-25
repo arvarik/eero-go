@@ -147,11 +147,11 @@ func TestDeviceService_List(t *testing.T) {
 
 			// Verify the second "offline" device gracefully handles nil pointers
 			d2 := devices[1]
-			if d2.Nickname != tc.expectSecondDeviceName {
-				t.Errorf("Device 2 Nickname should be nil, got %v", d2.Nickname)
+			if !equalStringPtr(d2.Nickname, tc.expectSecondDeviceName) {
+				t.Errorf("Device 2 Nickname mismatch: got %q, want %q", safeStr(d2.Nickname), safeStr(tc.expectSecondDeviceName))
 			}
-			if d2.IP != tc.expectSecondDeviceIP {
-				t.Errorf("Device 2 IP should be nil, got %v", d2.IP)
+			if !equalStringPtr(d2.IP, tc.expectSecondDeviceIP) {
+				t.Errorf("Device 2 IP mismatch: got %q, want %q", safeStr(d2.IP), safeStr(tc.expectSecondDeviceIP))
 			}
 			if d2.Connected {
 				t.Errorf("Device 2 should be disconnected")
@@ -163,4 +163,24 @@ func TestDeviceService_List(t *testing.T) {
 // ptr is a helper to securely return pointers to literal strings for testing
 func ptr(s string) *string {
 	return &s
+}
+
+// equalStringPtr compares two string pointers for equality.
+// It returns true if both are nil, or if both are non-nil and point to the same string value.
+func equalStringPtr(a, b *string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+// safeStr dereferences a string pointer safely for logging.
+func safeStr(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
 }
