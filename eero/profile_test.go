@@ -2,6 +2,7 @@ package eero_test
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -144,6 +145,43 @@ func TestProfileService_Pause(t *testing.T) {
 	}
 
 	err = client.Profile.Unpause(context.Background(), profileURL)
+	if err != nil {
+		t.Fatalf("Expected no error unpausing profile, got: %v", err)
+	}
+}
+
+func TestProfileService_Unpause(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	profileURL := "/2.2/networks/55555/profiles/111"
+
+	mux.HandleFunc(profileURL, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("Expected PUT, got %s", r.Method)
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("Failed to read body: %v", err)
+		}
+
+		expected := `{"paused":false}`
+		if string(body) != expected {
+			t.Errorf("Expected body %s, got %s", expected, string(body))
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"meta": {"code": 200}, "data": {}}`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	client, _ := eero.NewClient()
+	client.BaseURL = server.URL + "/2.2"
+
+	err := client.Profile.Unpause(context.Background(), profileURL)
 	if err != nil {
 		t.Fatalf("Expected no error unpausing profile, got: %v", err)
 	}

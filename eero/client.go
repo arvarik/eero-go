@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -41,6 +42,17 @@ type Client struct {
 	Network *NetworkService
 	Device  *DeviceService
 	Profile *ProfileService
+
+	// originMu protects cachedOriginURL and originURLSnapshot
+	originMu sync.RWMutex
+
+	// cachedOriginURL stores the parsed origin URL (scheme + host) to avoid
+	// re-parsing on every call to originURL().
+	cachedOriginURL *url.URL
+
+	// originURLSnapshot stores the BaseURL string that cachedOriginURL was
+	// derived from. If BaseURL changes, we invalidate the cache.
+	originURLSnapshot string
 }
 
 // NewClient creates a new eero API client with sensible defaults.
@@ -88,6 +100,13 @@ func NewClient() (*Client, error) {
 		UserAgent:  DefaultUserAgent,
 	}
 
+	// Initialize the origin URL cache for the default BaseURL.
+	// We ignore errors here because DefaultBaseURL is a constant known to be valid.
+	if u, err := url.Parse(DefaultBaseURL); err == nil {
+		c.cachedOriginURL = &url.URL{Scheme: u.Scheme, Host: u.Host}
+		c.originURLSnapshot = DefaultBaseURL
+	}
+
 	c.Auth = &AuthService{client: c}
 	c.Account = &AccountService{client: c}
 	c.Network = &NetworkService{client: c}
@@ -123,27 +142,7 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body any) 
 	// a path prefix (e.g. "/2.2") and path typically starts with "/".
 	// using ResolveReference would drop the BaseURL path if the new path starts with "/".
 	u := c.BaseURL + path
-
-	var bodyReader io.Reader
-	if body != nil {
-		buf, err := json.Marshal(body)
-		if err != nil {
-			return nil, fmt.Errorf("eero: marshaling request body: %w", err)
-		}
-		bodyReader = bytes.NewReader(buf)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, u, bodyReader)
-	if err != nil {
-		return nil, fmt.Errorf("eero: creating request: %w", err)
-	}
-
-	req.Header.Set("User-Agent", c.UserAgent)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	return req, nil
+	return c.buildRequest(ctx, method, u, body)
 }
 
 // response is the non-generic envelope used internally by the do() helper.
@@ -161,14 +160,11 @@ type EeroResponse[T any] struct {
 	Data T        `json:"data"`
 }
 
-// do executes the given request and decodes the JSON envelope. If the API
-// returns a non-2xx status or the meta.code indicates an error, a structured
-// *APIError is returned. If v is non-nil, the "data" portion of the response
-// envelope is decoded into it.
-func (c *Client) do(req *http.Request, v any) error {
+// performRequest executes the HTTP request and reads the response body up to a limit.
+func (c *Client) performRequest(req *http.Request) ([]byte, int, error) {
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("eero: executing request: %w", err)
+		return nil, 0, fmt.Errorf("eero: executing request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -178,24 +174,39 @@ func (c *Client) do(req *http.Request, v any) error {
 
 	bodyBytes, err := io.ReadAll(bodyReader)
 	if err != nil {
-		return fmt.Errorf("eero: reading response body: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("eero: reading response body: %w", err)
 	}
+	return bodyBytes, resp.StatusCode, nil
+}
 
-	var envelope response
-	if err := json.Unmarshal(bodyBytes, &envelope); err != nil {
-		// If we can't parse the envelope at all, wrap the raw status.
+// checkError inspects the response body and status code for API errors.
+func (c *Client) checkError(bodyBytes []byte, statusCode int) error {
+	var meta struct {
+		Meta APIError `json:"meta"`
+	}
+	if err := json.Unmarshal(bodyBytes, &meta); err != nil {
 		return &APIError{
-			HTTPStatusCode: resp.StatusCode,
-			Code:           resp.StatusCode,
+			HTTPStatusCode: statusCode,
+			Code:           statusCode,
 			Message:        fmt.Sprintf("unparseable response body: %s", string(bodyBytes)),
 		}
 	}
-
-	// Check for API-level errors.
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 || envelope.Meta.Code >= 400 {
-		apiErr := &envelope.Meta
-		apiErr.HTTPStatusCode = resp.StatusCode
+	if statusCode < 200 || statusCode >= 300 || meta.Meta.Code >= 400 {
+		apiErr := &meta.Meta
+		apiErr.HTTPStatusCode = statusCode
 		return apiErr
+	}
+	return nil
+}
+
+// do executes the given request and decodes the JSON envelope. If the API
+// returns a non-2xx status or the meta.code indicates an error, a structured
+// *APIError is returned. If v is non-nil, the "data" portion of the response
+// envelope is decoded into it.
+func (c *Client) do(req *http.Request, v any) error {
+	var envelope response
+	if err := c.doRaw(req, &envelope); err != nil {
+		return err
 	}
 
 	// Decode the data payload if a target was provided.
@@ -214,36 +225,13 @@ func (c *Client) do(req *http.Request, v any) error {
 // caller controls the full envelope type. Error checking is performed by
 // inspecting the HTTP status and parsing a meta envelope from the raw bytes.
 func (c *Client) doRaw(req *http.Request, v any) error {
-	resp, err := c.HTTPClient.Do(req)
+	bodyBytes, statusCode, err := c.performRequest(req)
 	if err != nil {
-		return fmt.Errorf("eero: executing request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	// SECURITY: Limit payloads to 5MB to prevent memory exhaustion / DoS attacks.
-	const maxBodyBytes = 5 * 1024 * 1024
-	bodyReader := io.LimitReader(resp.Body, maxBodyBytes)
-
-	bodyBytes, err := io.ReadAll(bodyReader)
-	if err != nil {
-		return fmt.Errorf("eero: reading response body: %w", err)
+		return err
 	}
 
-	// Check for API-level errors by peeking at the meta envelope.
-	var meta struct {
-		Meta APIError `json:"meta"`
-	}
-	if err := json.Unmarshal(bodyBytes, &meta); err != nil {
-		return &APIError{
-			HTTPStatusCode: resp.StatusCode,
-			Code:           resp.StatusCode,
-			Message:        fmt.Sprintf("unparseable response body: %s", string(bodyBytes)),
-		}
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 || meta.Meta.Code >= 400 {
-		apiErr := &meta.Meta
-		apiErr.HTTPStatusCode = resp.StatusCode
-		return apiErr
+	if err := c.checkError(bodyBytes, statusCode); err != nil {
+		return err
 	}
 
 	// Unmarshal the full response into the caller's target.
@@ -261,15 +249,51 @@ func (c *Client) doRaw(req *http.Request, v any) error {
 // relative paths like "/2.2/networks/12345" without double-prefixing the
 // version segment.
 func (c *Client) originURL() (*url.URL, error) {
+	// Fast path: if BaseURL hasn't changed since we last parsed it, use the cache.
+	c.originMu.RLock()
+	cached := c.cachedOriginURL
+	snapshot := c.originURLSnapshot
+	c.originMu.RUnlock()
+
+	// Note: We access c.BaseURL without a lock here because it's a public field
+	// that users can modify directly. Any race on BaseURL itself is the caller's
+	// responsibility. We only protect our cache consistency relative to what we see.
+	if cached != nil && c.BaseURL == snapshot {
+		// Return a copy to prevent callers from mutating the cached value
+		u := *cached
+		return &u, nil
+	}
+
+	// Slow path: acquire write lock to update cache
+	c.originMu.Lock()
+	defer c.originMu.Unlock()
+
+	// Double-check: maybe another goroutine updated it while we were waiting
+	if c.cachedOriginURL != nil && c.BaseURL == c.originURLSnapshot {
+		u := *c.cachedOriginURL
+		return &u, nil
+	}
+
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return nil, err
 	}
+
+	// If the URL doesn't have a scheme or host, return as is (but don't cache).
 	if u.Scheme == "" || u.Host == "" {
 		return u, nil
 	}
-	// Return a copy with only Scheme and Host set
-	return &url.URL{Scheme: u.Scheme, Host: u.Host}, nil
+
+	// Create the origin URL (Scheme + Host only)
+	origin := &url.URL{Scheme: u.Scheme, Host: u.Host}
+
+	// Update cache
+	c.cachedOriginURL = origin
+	c.originURLSnapshot = c.BaseURL
+
+	// Return a copy
+	ret := *origin
+	return &ret, nil
 }
 
 // newRequestFromURL creates an *http.Request using a full relative path
@@ -295,6 +319,10 @@ func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL stri
 
 	uStr := u.String()
 
+	return c.buildRequest(ctx, method, uStr, body)
+}
+
+func (c *Client) buildRequest(ctx context.Context, method, urlStr string, body any) (*http.Request, error) {
 	var bodyReader io.Reader
 	if body != nil {
 		buf, err := json.Marshal(body)
@@ -304,7 +332,7 @@ func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL stri
 		bodyReader = bytes.NewReader(buf)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, uStr, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, urlStr, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("eero: creating request: %w", err)
 	}

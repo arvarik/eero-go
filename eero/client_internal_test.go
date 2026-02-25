@@ -113,3 +113,16 @@ func TestClient_newRequestFromURL_SSRF(t *testing.T) {
 		t.Errorf("newRequestFromURL(%q) URL = %q; want %q", validAbsoluteURL, req.URL.String(), validAbsoluteURL)
 	}
 }
+
+func BenchmarkOriginURL(b *testing.B) {
+	c := &Client{
+		BaseURL: "https://api-user.e2ro.com/2.2",
+	}
+	// Warm up the cache by calling it once
+	_, _ = c.originURL()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = c.originURL()
+	}
+}
