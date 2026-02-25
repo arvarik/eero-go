@@ -285,7 +285,15 @@ func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL stri
 	if err != nil {
 		return nil, fmt.Errorf("eero: parsing relative URL: %w", err)
 	}
-	u := base.ResolveReference(rel).String()
+	u := base.ResolveReference(rel)
+
+	// SECURITY: Prevent SSRF by ensuring we never send credentials/requests
+	// to a host other than the configured API origin.
+	if u.Host != base.Host {
+		return nil, fmt.Errorf("eero: security policy blocked request to %s (expected %s)", u.Host, base.Host)
+	}
+
+	uStr := u.String()
 
 	var bodyReader io.Reader
 	if body != nil {
@@ -296,7 +304,7 @@ func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL stri
 		bodyReader = bytes.NewReader(buf)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, u, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, uStr, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("eero: creating request: %w", err)
 	}
