@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -41,6 +42,17 @@ type Client struct {
 	Network *NetworkService
 	Device  *DeviceService
 	Profile *ProfileService
+
+	// originMu protects cachedOriginURL and originURLSnapshot
+	originMu sync.RWMutex
+
+	// cachedOriginURL stores the parsed origin URL (scheme + host) to avoid
+	// re-parsing on every call to originURL().
+	cachedOriginURL *url.URL
+
+	// originURLSnapshot stores the BaseURL string that cachedOriginURL was
+	// derived from. If BaseURL changes, we invalidate the cache.
+	originURLSnapshot string
 }
 
 // NewClient creates a new eero API client with sensible defaults.
@@ -86,6 +98,13 @@ func NewClient() (*Client, error) {
 		HTTPClient: httpClient,
 		BaseURL:    DefaultBaseURL,
 		UserAgent:  DefaultUserAgent,
+	}
+
+	// Initialize the origin URL cache for the default BaseURL.
+	// We ignore errors here because DefaultBaseURL is a constant known to be valid.
+	if u, err := url.Parse(DefaultBaseURL); err == nil {
+		c.cachedOriginURL = &url.URL{Scheme: u.Scheme, Host: u.Host}
+		c.originURLSnapshot = DefaultBaseURL
 	}
 
 	c.Auth = &AuthService{client: c}
@@ -261,15 +280,51 @@ func (c *Client) doRaw(req *http.Request, v any) error {
 // relative paths like "/2.2/networks/12345" without double-prefixing the
 // version segment.
 func (c *Client) originURL() (*url.URL, error) {
+	// Fast path: if BaseURL hasn't changed since we last parsed it, use the cache.
+	c.originMu.RLock()
+	cached := c.cachedOriginURL
+	snapshot := c.originURLSnapshot
+	c.originMu.RUnlock()
+
+	// Note: We access c.BaseURL without a lock here because it's a public field
+	// that users can modify directly. Any race on BaseURL itself is the caller's
+	// responsibility. We only protect our cache consistency relative to what we see.
+	if cached != nil && c.BaseURL == snapshot {
+		// Return a copy to prevent callers from mutating the cached value
+		u := *cached
+		return &u, nil
+	}
+
+	// Slow path: acquire write lock to update cache
+	c.originMu.Lock()
+	defer c.originMu.Unlock()
+
+	// Double-check: maybe another goroutine updated it while we were waiting
+	if c.cachedOriginURL != nil && c.BaseURL == c.originURLSnapshot {
+		u := *c.cachedOriginURL
+		return &u, nil
+	}
+
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return nil, err
 	}
+
+	// If the URL doesn't have a scheme or host, return as is (but don't cache).
 	if u.Scheme == "" || u.Host == "" {
 		return u, nil
 	}
-	// Return a copy with only Scheme and Host set
-	return &url.URL{Scheme: u.Scheme, Host: u.Host}, nil
+
+	// Create the origin URL (Scheme + Host only)
+	origin := &url.URL{Scheme: u.Scheme, Host: u.Host}
+
+	// Update cache
+	c.cachedOriginURL = origin
+	c.originURLSnapshot = c.BaseURL
+
+	// Return a copy
+	ret := *origin
+	return &ret, nil
 }
 
 // newRequestFromURL creates an *http.Request using a full relative path
