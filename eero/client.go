@@ -142,27 +142,7 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body any) 
 	// a path prefix (e.g. "/2.2") and path typically starts with "/".
 	// using ResolveReference would drop the BaseURL path if the new path starts with "/".
 	u := c.BaseURL + path
-
-	var bodyReader io.Reader
-	if body != nil {
-		buf, err := json.Marshal(body)
-		if err != nil {
-			return nil, fmt.Errorf("eero: marshaling request body: %w", err)
-		}
-		bodyReader = bytes.NewReader(buf)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, u, bodyReader)
-	if err != nil {
-		return nil, fmt.Errorf("eero: creating request: %w", err)
-	}
-
-	req.Header.Set("User-Agent", c.UserAgent)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	return req, nil
+	return c.buildRequest(ctx, method, u, body)
 }
 
 // response is the non-generic envelope used internally by the do() helper.
@@ -342,6 +322,10 @@ func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL stri
 	}
 	u := base.ResolveReference(rel).String()
 
+	return c.buildRequest(ctx, method, u, body)
+}
+
+func (c *Client) buildRequest(ctx context.Context, method, urlStr string, body any) (*http.Request, error) {
 	var bodyReader io.Reader
 	if body != nil {
 		buf, err := json.Marshal(body)
@@ -351,7 +335,7 @@ func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL stri
 		bodyReader = bytes.NewReader(buf)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, u, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, urlStr, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("eero: creating request: %w", err)
 	}
