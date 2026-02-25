@@ -86,6 +86,34 @@ func TestClient_newRequestFromURL_Resolve(t *testing.T) {
 	}
 }
 
+func TestClient_newRequestFromURL_SSRF(t *testing.T) {
+	c := &Client{BaseURL: "https://api.eero.com/2.2"}
+	c.UserAgent = "test-agent"
+
+	// Case 1: Attempt to access a different host (SSRF).
+	attackerURL := "https://attacker.com/pwned"
+	req, err := c.newRequestFromURL(context.Background(), "GET", attackerURL, nil)
+	if err == nil {
+		t.Errorf("newRequestFromURL(%q) succeeded; want error", attackerURL)
+		if req.URL.Host != "api.eero.com" {
+			t.Errorf("Vulnerability confirmed: Request URL host is %s", req.URL.Host)
+		}
+	} else {
+		// This is the expected behavior after fix.
+		// Before fix, err == nil.
+		t.Logf("Got expected error: %v", err)
+	}
+
+	// Case 2: Use absolute URL with SAME host (should succeed).
+	validAbsoluteURL := "https://api.eero.com/2.2/networks/123"
+	req, err = c.newRequestFromURL(context.Background(), "GET", validAbsoluteURL, nil)
+	if err != nil {
+		t.Errorf("newRequestFromURL(%q) failed: %v", validAbsoluteURL, err)
+	} else if req.URL.String() != validAbsoluteURL {
+		t.Errorf("newRequestFromURL(%q) URL = %q; want %q", validAbsoluteURL, req.URL.String(), validAbsoluteURL)
+	}
+}
+
 func BenchmarkOriginURL(b *testing.B) {
 	c := &Client{
 		BaseURL: "https://api-user.e2ro.com/2.2",

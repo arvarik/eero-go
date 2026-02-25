@@ -309,9 +309,17 @@ func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL stri
 	if err != nil {
 		return nil, fmt.Errorf("eero: parsing relative URL: %w", err)
 	}
-	u := base.ResolveReference(rel).String()
+	u := base.ResolveReference(rel)
 
-	return c.buildRequest(ctx, method, u, body)
+	// SECURITY: Prevent SSRF by ensuring we never send credentials/requests
+	// to a host other than the configured API origin.
+	if u.Host != base.Host {
+		return nil, fmt.Errorf("eero: security policy blocked request to %s (expected %s)", u.Host, base.Host)
+	}
+
+	uStr := u.String()
+
+	return c.buildRequest(ctx, method, uStr, body)
 }
 
 func (c *Client) buildRequest(ctx context.Context, method, urlStr string, body any) (*http.Request, error) {
