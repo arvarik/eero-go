@@ -145,13 +145,6 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body any) 
 	return c.buildRequest(ctx, method, u, body)
 }
 
-// response is the non-generic envelope used internally by the do() helper.
-// All responses have a "meta" field; the "data" field varies by endpoint.
-type response struct {
-	Meta APIError        `json:"meta"`
-	Data json.RawMessage `json:"data"`
-}
-
 // EeroResponse is a generic envelope for type-safe JSON unmarshaling of eero
 // API responses. Use this when you want the compiler to enforce the data type
 // at the call site — e.g., EeroResponse[[]Device] for list endpoints.
@@ -204,19 +197,20 @@ func (c *Client) checkError(bodyBytes []byte, statusCode int) error {
 // *APIError is returned. If v is non-nil, the "data" portion of the response
 // envelope is decoded into it.
 func (c *Client) do(req *http.Request, v any) error {
-	var envelope response
-	if err := c.doRaw(req, &envelope); err != nil {
-		return err
+	if v == nil {
+		return c.doRaw(req, nil)
 	}
 
-	// Decode the data payload if a target was provided.
-	if v != nil && len(envelope.Data) > 0 {
-		if err := json.Unmarshal(envelope.Data, v); err != nil {
-			return fmt.Errorf("eero: decoding data payload: %w", err)
-		}
+	// Create an anonymous struct to unmarshal "data" directly into the caller's target.
+	// By wrapping v in this struct, json.Unmarshal will stream the "data" field
+	// straight into v without an intermediate json.RawMessage allocation.
+	target := &struct {
+		Data any `json:"data"`
+	}{
+		Data: v,
 	}
 
-	return nil
+	return c.doRaw(req, target)
 }
 
 // doRaw executes the given request and unmarshals the entire JSON response
