@@ -1,6 +1,7 @@
 package eero
 
 import (
+	"bytes"
 	"encoding/json"
 	"time"
 )
@@ -22,8 +23,14 @@ func (t *EeroTime) UnmarshalJSON(b []byte) error {
 
 	// 2. Decode the JSON string value (handling quotes, escapes, etc.)
 	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
-		return err
+	if len(b) >= 2 && b[0] == '"' && b[len(b)-1] == '"' && !bytes.ContainsRune(b, '\\') {
+		// Fast path for simple quoted strings
+		s = string(b[1 : len(b)-1])
+	} else {
+		// Fallback for complex escapes or invalid formats
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
 	}
 
 	// 3. Handle empty strings
