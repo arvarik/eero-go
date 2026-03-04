@@ -127,9 +127,10 @@ func (c *Client) SetSessionCookie(userToken string) error {
 	}
 	c.HTTPClient.Jar.SetCookies(u, []*http.Cookie{
 		{
-			Name:   "s",
-			Value:  userToken,
-			Secure: true, // Enforce transit over HTTPS
+			Name:     "s",
+			Value:    userToken,
+			Secure:   true, // Enforce transit over HTTPS
+			HttpOnly: true, // Prevent client-side script access
 		},
 	})
 	return nil
