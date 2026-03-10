@@ -173,45 +173,46 @@ func (c *Client) performRequest(req *http.Request) ([]byte, int, error) {
 	return bodyBytes, resp.StatusCode, nil
 }
 
-// checkError inspects the response body and status code for API errors.
-func (c *Client) checkError(bodyBytes []byte, statusCode int) error {
-	var meta struct {
-		Meta APIError `json:"meta"`
+// do executes the given request and decodes the JSON envelope. If the API
+// returns a non-2xx status or the meta.code indicates an error, a structured
+// *APIError is returned. If v is non-nil, the "data" portion of the response
+// envelope is decoded into it.
+func (c *Client) do(req *http.Request, v any) error {
+	bodyBytes, statusCode, err := c.performRequest(req)
+	if err != nil {
+		return err
 	}
-	if err := json.Unmarshal(bodyBytes, &meta); err != nil {
+
+	var combined struct {
+		Meta APIError        `json:"meta"`
+		Data json.RawMessage `json:"data"`
+	}
+
+	if err := json.Unmarshal(bodyBytes, &combined); err != nil {
 		return &APIError{
 			HTTPStatusCode: statusCode,
 			Code:           statusCode,
 			Message:        fmt.Sprintf("unparseable response body: %s", string(bodyBytes)),
 		}
 	}
-	if statusCode < 200 || statusCode >= 300 || meta.Meta.Code >= 400 {
-		apiErr := &meta.Meta
+
+	if statusCode < 200 || statusCode >= 300 || combined.Meta.Code >= 400 {
+		apiErr := &combined.Meta
 		apiErr.HTTPStatusCode = statusCode
 		return apiErr
 	}
+
+	if v != nil && len(combined.Data) > 0 {
+		// eero APIs sometimes return literal `null` for empty data.
+		// json.RawMessage captures this as "null", so we explicitly check and skip it.
+		if string(combined.Data) != "null" {
+			if err := json.Unmarshal(combined.Data, v); err != nil {
+				return fmt.Errorf("eero: decoding response data: %w", err)
+			}
+		}
+	}
+
 	return nil
-}
-
-// do executes the given request and decodes the JSON envelope. If the API
-// returns a non-2xx status or the meta.code indicates an error, a structured
-// *APIError is returned. If v is non-nil, the "data" portion of the response
-// envelope is decoded into it.
-func (c *Client) do(req *http.Request, v any) error {
-	if v == nil {
-		return c.doRaw(req, nil)
-	}
-
-	// Create an anonymous struct to unmarshal "data" directly into the caller's target.
-	// By wrapping v in this struct, json.Unmarshal will stream the "data" field
-	// straight into v without an intermediate json.RawMessage allocation.
-	target := &struct {
-		Data any `json:"data"`
-	}{
-		Data: v,
-	}
-
-	return c.doRaw(req, target)
 }
 
 // doRaw executes the given request and unmarshals the entire JSON response
@@ -225,8 +226,22 @@ func (c *Client) doRaw(req *http.Request, v any) error {
 		return err
 	}
 
-	if err := c.checkError(bodyBytes, statusCode); err != nil {
-		return err
+	var combined struct {
+		Meta APIError `json:"meta"`
+	}
+
+	if err := json.Unmarshal(bodyBytes, &combined); err != nil {
+		return &APIError{
+			HTTPStatusCode: statusCode,
+			Code:           statusCode,
+			Message:        fmt.Sprintf("unparseable response body: %s", string(bodyBytes)),
+		}
+	}
+
+	if statusCode < 200 || statusCode >= 300 || combined.Meta.Code >= 400 {
+		apiErr := &combined.Meta
+		apiErr.HTTPStatusCode = statusCode
+		return apiErr
 	}
 
 	// Unmarshal the full response into the caller's target.
