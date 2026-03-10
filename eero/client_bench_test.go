@@ -53,7 +53,7 @@ func BenchmarkDo(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req, _ := client.newRequest(ctx, "GET", "/test", nil)
+		req, _ := client.newRequest(ctx, "test", "GET", "/test", nil)
 		var out DummyData
 		_ = client.do(req, &out)
 	}
@@ -73,7 +73,7 @@ func BenchmarkDoRaw(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req, _ := client.newRequest(ctx, "GET", "/test", nil)
+		req, _ := client.newRequest(ctx, "test", "GET", "/test", nil)
 		var out EeroResponse[DummyData]
 		_ = client.doRaw(req, &out)
 	}
