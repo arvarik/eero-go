@@ -46,7 +46,7 @@ func TestClient_newRequest_Concat(t *testing.T) {
 		c := &Client{BaseURL: tt.baseURL}
 		c.UserAgent = "test-agent"
 
-		req, err := c.newRequest(context.Background(), "GET", tt.path, nil)
+		req, err := c.newRequest(context.Background(), "test", "GET", tt.path, nil)
 		if err != nil {
 			t.Errorf("newRequest(%q, %q) error: %v", tt.baseURL, tt.path, err)
 			continue
@@ -74,7 +74,7 @@ func TestClient_newRequestFromURL_Resolve(t *testing.T) {
 		c := &Client{BaseURL: tt.baseURL}
 		c.UserAgent = "test-agent"
 
-		req, err := c.newRequestFromURL(context.Background(), "GET", tt.relativeURL, nil)
+		req, err := c.newRequestFromURL(context.Background(), "test", "GET", tt.relativeURL, nil)
 		if err != nil {
 			t.Errorf("newRequestFromURL(%q, %q) error: %v", tt.baseURL, tt.relativeURL, err)
 			continue
@@ -92,7 +92,7 @@ func TestClient_newRequestFromURL_SSRF(t *testing.T) {
 
 	// Case 1: Attempt to access a different host (SSRF).
 	attackerURL := "https://attacker.com/pwned"
-	req, err := c.newRequestFromURL(context.Background(), "GET", attackerURL, nil)
+	req, err := c.newRequestFromURL(context.Background(), "test", "GET", attackerURL, nil)
 	if err == nil {
 		t.Errorf("newRequestFromURL(%q) succeeded; want error", attackerURL)
 		if req.URL.Host != "api.eero.com" {
@@ -106,7 +106,7 @@ func TestClient_newRequestFromURL_SSRF(t *testing.T) {
 
 	// Case 2: Use absolute URL with SAME host (should succeed).
 	validAbsoluteURL := "https://api.eero.com/2.2/networks/123"
-	req, err = c.newRequestFromURL(context.Background(), "GET", validAbsoluteURL, nil)
+	req, err = c.newRequestFromURL(context.Background(), "test", "GET", validAbsoluteURL, nil)
 	if err != nil {
 		t.Errorf("newRequestFromURL(%q) failed: %v", validAbsoluteURL, err)
 	} else if req.URL.String() != validAbsoluteURL {

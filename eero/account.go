@@ -125,9 +125,9 @@ type MarketingEmailsConsent struct {
 // (e.g., "/2.2/networks/12345") that can be passed directly to
 // NetworkService.Get and DeviceService.List.
 func (s *AccountService) Get(ctx context.Context) (*Account, error) {
-	req, err := s.client.newRequest(ctx, http.MethodGet, "/account", nil)
+	req, err := s.client.newRequest(ctx, "account", http.MethodGet, "/account", nil)
 	if err != nil {
-		return nil, fmt.Errorf("account: creating request: %w", err)
+		return nil, err
 	}
 
 	var resp EeroResponse[Account]

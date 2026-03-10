@@ -269,9 +269,9 @@ type PowerInfo struct {
 // The networkURL parameter should be the exact relative URL from the account
 // response (e.g., "/2.2/networks/12345"). Do not manually construct the path.
 func (s *NetworkService) Get(ctx context.Context, networkURL string) (*NetworkDetails, error) {
-	req, err := s.client.newRequestFromURL(ctx, http.MethodGet, networkURL, nil)
+	req, err := s.client.newRequestFromURL(ctx, "network", http.MethodGet, networkURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("network: creating request: %w", err)
+		return nil, err
 	}
 
 	var resp EeroResponse[NetworkDetails]
@@ -287,9 +287,9 @@ func (s *NetworkService) Get(ctx context.Context, networkURL string) (*NetworkDe
 // The networkURL parameter should be the exact relative URL from the account
 // response (e.g., "/2.2/networks/12345").
 func (s *NetworkService) Reboot(ctx context.Context, networkURL string) error {
-	req, err := s.client.newRequestFromURL(ctx, http.MethodPost, networkURL+"/reboot", nil)
+	req, err := s.client.newRequestFromURL(ctx, "network", http.MethodPost, networkURL+"/reboot", nil)
 	if err != nil {
-		return fmt.Errorf("network: creating reboot request: %w", err)
+		return err // Use the unified creation error wrapping for parity
 	}
 
 	if err := s.client.doRaw(req, nil); err != nil {

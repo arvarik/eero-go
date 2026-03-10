@@ -47,9 +47,9 @@ type pauseRequest struct {
 // The networkURL parameter should be the exact relative URL from the account
 // response (e.g., "/2.2/networks/12345").
 func (s *ProfileService) List(ctx context.Context, networkURL string) ([]Profile, error) {
-	req, err := s.client.newRequestFromURL(ctx, http.MethodGet, networkURL+"/profiles", nil)
+	req, err := s.client.newRequestFromURL(ctx, "profile", http.MethodGet, networkURL+"/profiles", nil)
 	if err != nil {
-		return nil, fmt.Errorf("profile: creating request: %w", err)
+		return nil, err
 	}
 
 	var resp EeroResponse[[]Profile]
@@ -79,9 +79,9 @@ func (s *ProfileService) Unpause(ctx context.Context, profileURL string) error {
 func (s *ProfileService) setPaused(ctx context.Context, profileURL string, paused bool) error {
 	body := pauseRequest{Paused: paused}
 
-	req, err := s.client.newRequestFromURL(ctx, http.MethodPut, profileURL, body)
+	req, err := s.client.newRequestFromURL(ctx, "profile", http.MethodPut, profileURL, body)
 	if err != nil {
-		return fmt.Errorf("profile: creating pause request: %w", err)
+		return err
 	}
 
 	if err := s.client.doRaw(req, nil); err != nil {

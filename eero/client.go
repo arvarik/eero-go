@@ -138,12 +138,12 @@ func (c *Client) SetSessionCookie(userToken string) error {
 
 // newRequest creates an *http.Request with the appropriate headers and
 // optional JSON body. The path is appended to the client's BaseURL.
-func (c *Client) newRequest(ctx context.Context, method, path string, body any) (*http.Request, error) {
+func (c *Client) newRequest(ctx context.Context, serviceName, method, path string, body any) (*http.Request, error) {
 	// We use simple string concatenation here because BaseURL typically contains
 	// a path prefix (e.g. "/2.2") and path typically starts with "/".
 	// using ResolveReference would drop the BaseURL path if the new path starts with "/".
 	u := c.BaseURL + path
-	return c.buildRequest(ctx, method, u, body)
+	return c.buildRequest(ctx, serviceName, method, u, body)
 }
 
 // EeroResponse is a generic envelope for type-safe JSON unmarshaling of eero
@@ -310,7 +310,7 @@ func (c *Client) originURL() (*url.URL, error) {
 // (e.g., "/2.2/networks/12345") resolved against the API origin, rather
 // than appending to BaseURL. This avoids duplicate path prefixes when the
 // caller already has a complete API-relative URL.
-func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL string, body any) (*http.Request, error) {
+func (c *Client) newRequestFromURL(ctx context.Context, serviceName, method, relativeURL string, body any) (*http.Request, error) {
 	base, err := c.originURL()
 	if err != nil {
 		return nil, fmt.Errorf("eero: parsing origin URL: %w", err)
@@ -329,22 +329,22 @@ func (c *Client) newRequestFromURL(ctx context.Context, method, relativeURL stri
 
 	uStr := u.String()
 
-	return c.buildRequest(ctx, method, uStr, body)
+	return c.buildRequest(ctx, serviceName, method, uStr, body)
 }
 
-func (c *Client) buildRequest(ctx context.Context, method, urlStr string, body any) (*http.Request, error) {
+func (c *Client) buildRequest(ctx context.Context, serviceName, method, urlStr string, body any) (*http.Request, error) {
 	var bodyReader io.Reader
 	if body != nil {
 		buf, err := json.Marshal(body)
 		if err != nil {
-			return nil, fmt.Errorf("eero: marshaling request body: %w", err)
+			return nil, fmt.Errorf("%s: marshaling request body: %w", serviceName, err)
 		}
 		bodyReader = bytes.NewReader(buf)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, urlStr, bodyReader)
 	if err != nil {
-		return nil, fmt.Errorf("eero: creating request: %w", err)
+		return nil, fmt.Errorf("%s: creating request: %w", serviceName, err)
 	}
 
 	req.Header.Set("User-Agent", c.UserAgent)

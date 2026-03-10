@@ -40,7 +40,7 @@ type VerifyRequest struct {
 func (s *AuthService) Login(ctx context.Context, identifier string) (*LoginResponse, error) {
 	body := LoginRequest{Login: identifier}
 
-	req, err := s.client.newRequest(ctx, http.MethodPost, "/login", body)
+	req, err := s.client.newRequest(ctx, "auth", http.MethodPost, "/login", body)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (s *AuthService) Login(ctx context.Context, identifier string) (*LoginRespo
 func (s *AuthService) Verify(ctx context.Context, verificationCode string) error {
 	body := VerifyRequest{Code: verificationCode}
 
-	req, err := s.client.newRequest(ctx, http.MethodPost, "/login/verify", body)
+	req, err := s.client.newRequest(ctx, "auth", http.MethodPost, "/login/verify", body)
 	if err != nil {
 		return err
 	}
