@@ -1,0 +1,2 @@
+PASS
+ok  	github.com/arvarik/eero-go/eero	0.079s

@@ -192,7 +192,7 @@ func (c *Client) do(req *http.Request, v any) error {
 		return &APIError{
 			HTTPStatusCode: statusCode,
 			Code:           statusCode,
-			Message:        fmt.Sprintf("unparseable response body: %s", string(bodyBytes)),
+			Message:        fmt.Sprintf("unparseable response body (%d bytes)", len(bodyBytes)),
 		}
 	}
 
@@ -234,7 +234,7 @@ func (c *Client) doRaw(req *http.Request, v any) error {
 		return &APIError{
 			HTTPStatusCode: statusCode,
 			Code:           statusCode,
-			Message:        fmt.Sprintf("unparseable response body: %s", string(bodyBytes)),
+			Message:        fmt.Sprintf("unparseable response body (%d bytes)", len(bodyBytes)),
 		}
 	}
 
