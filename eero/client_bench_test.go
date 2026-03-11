@@ -42,7 +42,7 @@ func init() {
 func BenchmarkDo(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write(largePayload)
+		_, _ = w.Write(largePayload)
 	}))
 	defer server.Close()
 
@@ -62,7 +62,7 @@ func BenchmarkDo(b *testing.B) {
 func BenchmarkDoRaw(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write(largePayload)
+		_, _ = w.Write(largePayload)
 	}))
 	defer server.Close()
 
@@ -82,7 +82,7 @@ func BenchmarkDoRaw(b *testing.B) {
 func BenchmarkDoParseError(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write(badPayload)
+		_, _ = w.Write(badPayload)
 	}))
 	defer server.Close()
 
@@ -102,7 +102,7 @@ func BenchmarkDoParseError(b *testing.B) {
 func BenchmarkDoRawParseError(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write(badPayload)
+		_, _ = w.Write(badPayload)
 	}))
 	defer server.Close()
 
