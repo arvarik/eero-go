@@ -112,6 +112,15 @@ func TestClient_newRequestFromURL_SSRF(t *testing.T) {
 	} else if req.URL.String() != validAbsoluteURL {
 		t.Errorf("newRequestFromURL(%q) URL = %q; want %q", validAbsoluteURL, req.URL.String(), validAbsoluteURL)
 	}
+
+	// Case 3: Attempt protocol downgrade (same host, different scheme).
+	downgradeURL := "http://api.eero.com/2.2/networks/123"
+	_, err = c.newRequestFromURL(context.Background(), "test", "GET", downgradeURL, nil)
+	if err == nil {
+		t.Errorf("newRequestFromURL(%q) succeeded; want error", downgradeURL)
+	} else {
+		t.Logf("Got expected error: %v", err)
+	}
 }
 
 func BenchmarkOriginURL(b *testing.B) {

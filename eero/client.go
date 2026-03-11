@@ -322,9 +322,10 @@ func (c *Client) newRequestFromURL(ctx context.Context, serviceName, method, rel
 	u := base.ResolveReference(rel)
 
 	// SECURITY: Prevent SSRF by ensuring we never send credentials/requests
-	// to a host other than the configured API origin.
-	if u.Host != base.Host {
-		return nil, fmt.Errorf("eero: security policy blocked request to %s (expected %s)", u.Host, base.Host)
+	// to a host other than the configured API origin, and prevent protocol
+	// downgrades by enforcing the expected scheme.
+	if u.Host != base.Host || u.Scheme != base.Scheme {
+		return nil, fmt.Errorf("eero: security policy blocked request to %s://%s (expected %s://%s)", u.Scheme, u.Host, base.Scheme, base.Host)
 	}
 
 	uStr := u.String()
