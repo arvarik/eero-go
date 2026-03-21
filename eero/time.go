@@ -17,7 +17,7 @@ type EeroTime struct {
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (t *EeroTime) UnmarshalJSON(b []byte) error {
 	// 1. Handle explicit nulls safely
-	if string(b) == "null" {
+	if bytes.Equal(b, []byte("null")) {
 		return nil
 	}
 
