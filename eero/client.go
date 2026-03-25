@@ -205,7 +205,7 @@ func (c *Client) do(req *http.Request, v any) error {
 	if v != nil && len(combined.Data) > 0 {
 		// eero APIs sometimes return literal `null` for empty data.
 		// json.RawMessage captures this as "null", so we explicitly check and skip it.
-		if string(combined.Data) != "null" {
+		if !bytes.Equal(combined.Data, []byte("null")) {
 			if err := json.Unmarshal(combined.Data, v); err != nil {
 				return fmt.Errorf("eero: decoding response data: %w", err)
 			}
