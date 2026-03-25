@@ -197,3 +197,83 @@ func TestNetworkService_Get(t *testing.T) {
 		})
 	}
 }
+
+func TestNetworkService_Reboot(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		networkURL   string
+		mockStatus   int
+		mockResponse string
+		wantErr      bool
+	}{
+		{
+			name:         "Success",
+			networkURL:   "/2.2/networks/44444",
+			mockStatus:   http.StatusOK,
+			mockResponse: `{"meta": {"code": 200}, "data": {}}`,
+			wantErr:      false,
+		},
+		{
+			name:         "Failure_NotFound",
+			networkURL:   "/2.2/networks/99999",
+			mockStatus:   http.StatusNotFound,
+			mockResponse: `{"meta": {"code": 404, "error": "Network not found"}, "data": {}}`,
+			wantErr:      true,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			mux := http.NewServeMux()
+			expectedPath := tc.networkURL + "/reboot"
+
+			mux.HandleFunc(expectedPath, func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPost {
+					t.Errorf("Expected POST, got %s", r.Method)
+				}
+
+				cookie, err := r.Cookie("s")
+				if err != nil || cookie.Value != "test_session_active" {
+					t.Errorf("Expected session cookie 's=test_session_active' on request, got %v", cookie)
+				}
+
+				w.WriteHeader(tc.mockStatus)
+				_, _ = w.Write([]byte(tc.mockResponse))
+			})
+
+			server := httptest.NewServer(mux)
+			defer server.Close()
+
+			client, err := eero.NewClient()
+			if err != nil {
+				t.Fatalf("Failed to create client: %v", err)
+			}
+			client.BaseURL = server.URL + "/2.2"
+
+			testURL, _ := url.Parse(client.BaseURL)
+			client.HTTPClient.Jar.SetCookies(testURL, []*http.Cookie{
+				{Name: "s", Value: "test_session_active"},
+			})
+
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			err = client.Network.Reboot(ctx, tc.networkURL)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected an error, but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Expected no error, got: %v", err)
+				}
+			}
+		})
+	}
+}
