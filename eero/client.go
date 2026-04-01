@@ -173,14 +173,13 @@ func (c *Client) performRequest(req *http.Request) ([]byte, int, error) {
 	return bodyBytes, resp.StatusCode, nil
 }
 
-// do executes the given request and decodes the JSON envelope. If the API
-// returns a non-2xx status or the meta.code indicates an error, a structured
-// *APIError is returned. If v is non-nil, the "data" portion of the response
-// envelope is decoded into it.
-func (c *Client) do(req *http.Request, v any) error {
+// performRequestAndCheck executes the request, reads the body, and performs
+// error checking against the "meta" envelope. It returns the raw body bytes
+// and the "data" segment if successful.
+func (c *Client) performRequestAndCheck(req *http.Request) ([]byte, json.RawMessage, error) {
 	bodyBytes, statusCode, err := c.performRequest(req)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	var combined struct {
@@ -189,7 +188,7 @@ func (c *Client) do(req *http.Request, v any) error {
 	}
 
 	if err := json.Unmarshal(bodyBytes, &combined); err != nil {
-		return &APIError{
+		return nil, nil, &APIError{
 			HTTPStatusCode: statusCode,
 			Code:           statusCode,
 			Message:        fmt.Sprintf("unparseable response body (%d bytes)", len(bodyBytes)),
@@ -199,14 +198,27 @@ func (c *Client) do(req *http.Request, v any) error {
 	if statusCode < 200 || statusCode >= 300 || combined.Meta.Code >= 400 {
 		apiErr := &combined.Meta
 		apiErr.HTTPStatusCode = statusCode
-		return apiErr
+		return nil, nil, apiErr
 	}
 
-	if v != nil && len(combined.Data) > 0 {
+	return bodyBytes, combined.Data, nil
+}
+
+// do executes the given request and decodes the JSON envelope. If the API
+// returns a non-2xx status or the meta.code indicates an error, a structured
+// *APIError is returned. If v is non-nil, the "data" portion of the response
+// envelope is decoded into it.
+func (c *Client) do(req *http.Request, v any) error {
+	_, data, err := c.performRequestAndCheck(req)
+	if err != nil {
+		return err
+	}
+
+	if v != nil && len(data) > 0 {
 		// eero APIs sometimes return literal `null` for empty data.
 		// json.RawMessage captures this as "null", so we explicitly check and skip it.
-		if !bytes.Equal(combined.Data, []byte("null")) {
-			if err := json.Unmarshal(combined.Data, v); err != nil {
+		if !bytes.Equal(data, []byte("null")) {
+			if err := json.Unmarshal(data, v); err != nil {
 				return fmt.Errorf("eero: decoding response data: %w", err)
 			}
 		}
@@ -221,27 +233,9 @@ func (c *Client) do(req *http.Request, v any) error {
 // caller controls the full envelope type. Error checking is performed by
 // inspecting the HTTP status and parsing a meta envelope from the raw bytes.
 func (c *Client) doRaw(req *http.Request, v any) error {
-	bodyBytes, statusCode, err := c.performRequest(req)
+	bodyBytes, _, err := c.performRequestAndCheck(req)
 	if err != nil {
 		return err
-	}
-
-	var combined struct {
-		Meta APIError `json:"meta"`
-	}
-
-	if err := json.Unmarshal(bodyBytes, &combined); err != nil {
-		return &APIError{
-			HTTPStatusCode: statusCode,
-			Code:           statusCode,
-			Message:        fmt.Sprintf("unparseable response body (%d bytes)", len(bodyBytes)),
-		}
-	}
-
-	if statusCode < 200 || statusCode >= 300 || combined.Meta.Code >= 400 {
-		apiErr := &combined.Meta
-		apiErr.HTTPStatusCode = statusCode
-		return apiErr
 	}
 
 	// Unmarshal the full response into the caller's target.
