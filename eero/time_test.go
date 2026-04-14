@@ -67,8 +67,8 @@ func TestEeroTime_UnmarshalJSON(t *testing.T) {
 				t.Fatalf("Unexpected parsing error: %v", err)
 			}
 
-			if !et.Time.Equal(tc.expected) {
-				t.Fatalf("Time parsed incorrectly. Wanted %s, got %s", tc.expected.Format(time.RFC3339), et.Time.Format(time.RFC3339))
+			if !et.Equal(tc.expected) {
+				t.Fatalf("Time parsed incorrectly. Wanted %s, got %s", tc.expected.Format(time.RFC3339), et.Format(time.RFC3339))
 			}
 		})
 	}

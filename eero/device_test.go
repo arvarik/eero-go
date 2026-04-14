@@ -132,7 +132,7 @@ func TestDeviceService_List(t *testing.T) {
 			if !d1.Connected {
 				t.Errorf("Device 1 should be connected")
 			}
-			if d1.LastActive.Time.IsZero() {
+			if d1.LastActive.IsZero() {
 				t.Errorf("Device 1 failed to parse last_active custom EeroTime format")
 			}
 			if d1.VlanID == nil || *d1.VlanID != 4 {
