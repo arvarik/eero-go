@@ -1,46 +1,53 @@
 # Style Guide & Code Conventions
 
-_This document enforces the visual identity and coding patterns of the project. It prevents context drift as multiple agents work on the codebase. Agents MUST follow these rules strictly._
+_This document enforces the coding patterns specifically tailored for building this strict Go SDK. It prevents context drift as multiple agents work on the codebase. Agents MUST follow these rules strictly._
 
-## 1. Visual Language & Tokens
-N/A — SDK / backend-only project.
+## 1. Zero-Dependency Protocol
+The `eero/` core package is strictly confined.
+- **Allowed Packages:** Core `std`, primarily `net/http`, `context`, `time`, `bytes`, `fmt`, `encoding/json`, `io`, and `errors`.
+- **Forbidden Packages:** Any external library (e.g., `github.com/*` or `golang.org/x/*`) including `logrus`, `resty`, `testify`, or `go-cmp`.
 
-## 2. Component Patterns
-N/A — SDK / backend-only project.
+## 2. Syntax and Architecture Patterns
 
-## 3. Code Conventions
+### Generic Envelope Deserialization
+Eero's API wraps data indiscriminately. E.g., `{"meta": {...}, "data": [ ... ]}`.
+- NEVER map these manually inside service functions.
+- ALWAYS use the `eero.EeroResponse[T]` generic envelope for unmarshaling API responses. Send the inner concrete struct as the generic parameter `T`.
 
-### Architecture Patterns
-- **Zero-Dependency SDK**: The core library in `eero/` MUST NOT rely on any external Go packages. All functionality must be built on top of the standard library (`net/http`, `context`, `encoding/json`).
-- **Generic Envelope Unmarshaling**: Use Go 1.18+ Generics (`EeroResponse[T]`) to unmarshal Eero's deeply nested JSON envelopes into clean, traversable Go structs.
-- **Modular Service Design**: Services are split into discrete domains (`auth.go`, `account.go`, `network.go`, `device.go`, `profile.go`) attached to a core `Client`.
+### Context & Timeouts
+- All service methods (`Account.Get()`, `Network.Reboot()`) MUST accept a `ctx context.Context` as the very first parameter.
+- Pass this context directly into the `http.NewRequestWithContext` constructor. 
+- Do not build internal timeouts inside the SDK. Timeouts are exclusively the responsibility of the caller providing the context.
 
-### State Management
-- **Session Management**: Session state (the authentication cookie) is managed internally by `net/http/cookiejar`. For persistence across runs, the token is extracted and saved to `.eero_session.json`.
-- **Stateless Services**: The domain services (`Account`, `Network`, etc.) are stateless and rely on the `Client` to provide the authenticated HTTP transport.
+### Error Handling & Typing
+Always return strongly-typed errors that downstream applications can check against.
+- Standard Library Wrapping: Use `fmt.Errorf("contextual message: %w", err)` to wrap standard library errors, not `errors.New`.
+- Eero Specific Failures: Use the internally defined `eero.APIError` to represent upstream 4xx/5xx status codes natively.
 
-### Strict Typing
-- All code MUST pass `golangci-lint run ./...` with zero warnings.
-- Optional fields in JSON responses MUST be represented as pointers (e.g., `*string`, `*int`) so that absent data correctly unmarshals to `nil` rather than zero-values.
+### JSON Pointer Semantics (Critical) 
+Eero's upstream API is notoriously undocumented. If a device goes offline, boolean variables might vanish entirely from the JSON rather than safely reverting to `false`.
+- **Mandate:** Any struct field mapped via `json:"xyz"` that could potentially be omitted from the Eero payload MUST be mapped as a pointer (`*string`, `*int`, `*bool`).
+- **Forbidden:** Never use `string`, `int`, or `bool` for fields that aren't guaranteed, doing so causes runtime zero-value defaults that misrepresent actual hardware telemetry.
 
-## 4. Naming Conventions
-- **Files**: `snake_case.go` for Go files (e.g., `account_test.go`, `client_session_test.go`).
-- **Variables / Functions**: `camelCase` for unexported internal variables/functions, `PascalCase` for exported public API surface.
-- **Structs / Types**: `PascalCase` for all exported data models.
-- **Packages**: `eero` is a lowercase, single-word package name.
+## 3. Naming Conventions
 
-## 5. Import Ordering
-- Standard `goimports` ordering:
-  1. Standard library (`fmt`, `net/http`, `context`, `encoding/json`).
-  2. (No third-party dependencies allowed in the core library).
+### File Topology
+- `domain.go` (e.g., `network.go`, `device.go`).
+- `domain_test.go` for blackbox external API testing (e.g., `network_test.go`).
+- `domain_internal_test.go` for internal package state assertions.
 
-## 6. Documentation Standards
-- **Docstrings**: Provide `godoc`-compatible comments on all exported types and functions (`// FunctionName does X.`).
+### Variable / Func Casing
+- `camelCase` for unexported internal variables and helper functions.
+- `PascalCase` for all exported API interfaces and telemetry Data Structs.
+- `json:"snake_case"` strictly for struct tags mapping to upstream Eero Cloud keys.
+- **Package Name:** `eero` (strictly lowercase, single word).
 
-## 7. Anti-Patterns (FORBIDDEN)
-- ❌ NEVER introduce third-party dependencies outside the standard library to the `eero/` package.
-- ❌ NEVER read unbounded HTTP response bodies. Always use `io.LimitReader` (e.g., capped at 5MB).
-- ❌ NEVER use `interface{}` / `any` for JSON unmarshaling where a strongly typed generic or concrete struct can be used.
-- ❌ NEVER represent optional JSON fields as concrete zero-values (use pointers like `*string` to handle `nil`).
-- ❌ NEVER bypass the `http.CookieJar` for session token management during active requests.
-- ❌ NEVER disable `golangci-lint` checks.
+## 4. Anti-Patterns (FORBIDDEN)
+> [!WARNING]
+> DO NOT MERGE CODE containing these patterns.
+
+- ❌ NEVER read unbounded HTTP response bodies. **Always use bounded reads** (e.g., `io.LimitReader(resp.Body, 5*1024*1024)`).
+- ❌ NEVER use `interface{}` or `any` for JSON unmarshaling where a generic envelope or concrete struct can be defined.
+- ❌ NEVER instantiate standard zero-values struct fields for missing Eero Optional JSON blocks.
+- ❌ NEVER construct HTTP Requests that bypass the `client.cookieJar`.
+- ❌ NEVER ignore the Go Linting rules (`golangci-lint run ./...`). Build tasks will fail immediately on pre-commit hooks.
