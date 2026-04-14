@@ -187,7 +187,7 @@ func TestNetworkService_Get(t *testing.T) {
 					t.Errorf("Eero serial = %v, want %v", netDetails.Eeros.Data[0].Serial, tc.expectEeroSerial)
 				}
 				eeroNode := netDetails.Eeros.Data[0]
-				if eeroNode.Joined.Time.IsZero() {
+				if eeroNode.Joined.IsZero() {
 					t.Errorf("Failed to parse EeroNode custom timestamp wrapped properties")
 				}
 				if len(eeroNode.IPv6Addresses) == 0 {
