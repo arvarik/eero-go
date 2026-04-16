@@ -104,3 +104,15 @@ To add a new Eero API endpoint, agents should follow this sequential process:
 | Add `Network.UpdateDNS()` — configure DNS settings | Low | Mutative Endpoint | Not Started |
 | Tighten CI lint to `continue-on-error: false` | Medium | DevOps | Not Started |
 | Add `Device.Block()` / `Unblock()` — blacklist control | Low | Mutative Endpoint | Not Started |
+
+---
+
+## Stub Audit Tracker
+
+N/A — Not a full-stack project. No frontend stubs.
+
+---
+
+## Prompt Versioning Changelog
+
+N/A — No LLM prompts in this project.
