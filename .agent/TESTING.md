@@ -221,6 +221,41 @@ This benchmark validated the `json.RawMessage` approach used in `performRequestA
 | `time_test.go` | `eero_test` | `TestEeroTime_UnmarshalJSON` (5 cases: custom format, RFC3339, null, empty, invalid) |
 | `test_parse_bench_test.go` | `main` | `BenchmarkDo_DoubleParse`, `BenchmarkDo_SingleParseRawMessage` |
 
+---
+
+## Backend Route Coverage Matrix
+
+_Populated by the SDET during the Trap phase. One row per exported function or API method. All cells must show PASS with execution evidence or FAIL with reproduction steps._
+
+| Endpoint / Function | Method | Valid Input | Invalid Input | Error Handling | Edge Cases |
+|---------------------|--------|-------------|---------------|----------------|------------|
+| `NewClient()` | `client.go` | | | | |
+| `Client.SetSessionCookie(token)` | `client.go` | | | | |
+| `AuthService.Login(ctx, identifier)` | `POST /login` | | | | |
+| `AuthService.Verify(ctx, code)` | `POST /login/verify` | | | | |
+| `AccountService.Get(ctx)` | `GET /account` | | | | |
+| `NetworkService.Get(ctx, networkURL)` | `GET {networkURL}` | | | | |
+| `NetworkService.Reboot(ctx, networkURL)` | `POST {networkURL}/reboot` | | | | |
+| `DeviceService.List(ctx, networkURL)` | `GET {networkURL}/devices` | | | | |
+| `ProfileService.List(ctx, networkURL)` | `GET {networkURL}/profiles` | | | | |
+| `ProfileService.Pause(ctx, profileURL)` | `PUT {profileURL}` | | | | |
+| `ProfileService.Unpause(ctx, profileURL)` | `PUT {profileURL}` | | | | |
+| `APIError.Error()` | `errors.go` | | | | |
+| `APIError.IsAuthError()` | `errors.go` | | | | |
+| `EeroTime.UnmarshalJSON(b)` | `time.go` | | | | |
+
+---
+
+## Frontend Component State Matrix
+
+N/A — Frontend topology is not active for this project.
+
+---
+
+## ML / AI Evaluation Thresholds
+
+N/A — ML/AI topology is not active for this project.
+
 ## 5. Regression Matrix
 
 _These scenarios MUST pass locally before any `git push` command is issued._
