@@ -279,3 +279,16 @@ Agents operating within test boundaries must conform exactly to these output man
 - If establishing a new model, the agent MUST output `make lint` confirming zero violations.
 - **Silent passing is unacceptable.** You must copy the exact `go test` stdout to the active agent notes if executing changes manually.
 - All new endpoint implementations MUST include at least two test cases: one success case and one error case (4xx or 5xx).
+
+### Backend Route Coverage
+
+| Route | Method | Auth | Contract Test | Integration Test |
+|-------|--------|------|---------------|------------------|
+| _Fill in your routes_ | | | | |
+
+### API Surface Coverage
+
+| Export | Unit Test | Type Test | Doc Example | Breaking Change Guard |
+|-------|-----------|-----------|-------------|----------------------|
+| _Fill in your exports_ | | | | |
+
